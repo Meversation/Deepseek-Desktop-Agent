@@ -1,4 +1,4 @@
-namespace EAgent;
+namespace DeepseekDesktopAgent;
 
 internal static class Program
 {
@@ -19,10 +19,10 @@ internal static class Program
         Application.ThreadException += (_, e) => ShowCrash(e.Exception);
         AppDomain.CurrentDomain.UnhandledException += (_, e) => ShowCrash(e.ExceptionObject as Exception);
 
-        using var mutex = new Mutex(true, "EAgent.CSharp.SingleInstance", out var created);
+        using var mutex = new Mutex(true, "Deepseek-Desktop-Agent.SingleInstance", out var created);
         if (!created)
         {
-            MessageBox.Show("EAgent 已经在运行。", "EAgent", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            MessageBox.Show("Deepseek-Desktop-Agent 已经在运行。", "Deepseek-Desktop-Agent", MessageBoxButtons.OK, MessageBoxIcon.Information);
             return;
         }
 
@@ -34,10 +34,10 @@ internal static class Program
         if (ex == null) return;
         try
         {
-            var path = Path.Combine(Path.GetTempPath(), "EAgent_crash.log");
+            var path = Path.Combine(Path.GetTempPath(), "Deepseek-Desktop-Agent_crash.log");
             File.AppendAllText(path, DateTime.Now + Environment.NewLine + ex + Environment.NewLine + Environment.NewLine);
         }
         catch { }
-        MessageBox.Show("EAgent 发生未处理异常：\n\n" + ex.Message, "EAgent", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        MessageBox.Show("Deepseek-Desktop-Agent 发生未处理异常：\n\n" + ex.Message, "Deepseek-Desktop-Agent", MessageBoxButtons.OK, MessageBoxIcon.Error);
     }
 }

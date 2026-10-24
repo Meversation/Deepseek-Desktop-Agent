@@ -2,7 +2,7 @@ using System.Drawing;
 using System.Runtime.InteropServices;
 using System.Text;
 
-namespace EAgent;
+namespace DeepseekDesktopAgent;
 
 internal static class Native
 {

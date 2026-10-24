@@ -1,6 +1,6 @@
 using System.Drawing;
 
-namespace EAgent;
+namespace DeepseekDesktopAgent;
 
 public sealed class SafetyForm : Form
 {
@@ -8,7 +8,7 @@ public sealed class SafetyForm : Form
 
     public SafetyForm(string code)
     {
-        Text = "EAgent 安全确认";
+        Text = "Deepseek-Desktop-Agent 安全确认";
         StartPosition = FormStartPosition.CenterScreen;
         FormBorderStyle = FormBorderStyle.FixedDialog;
         MinimizeBox = false;

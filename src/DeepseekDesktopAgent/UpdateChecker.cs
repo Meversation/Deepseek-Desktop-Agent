@@ -1,13 +1,13 @@
 using System.Diagnostics;
 using System.Net.Http;
 
-namespace EAgent;
+namespace DeepseekDesktopAgent;
 
 public static class UpdateChecker
 {
-    public const string CurrentVersion = "2026年10月22日";
-    private const string UpdateUrl = "https://yaogaochaole.github.io/EAgent/auto_update.txt";
-    public const string ReleasesUrl = "https://github.com/yaogaochaole/EAgent/releases";
+    public const string CurrentVersion = "2026年10月24日";
+    private const string UpdateUrl = "https://meversation.github.io/Deepseek-Desktop-Agent/auto_update.txt";
+    public const string ReleasesUrl = "https://github.com/Meversation/Deepseek-Desktop-Agent/releases";
 
     private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(8) };
 

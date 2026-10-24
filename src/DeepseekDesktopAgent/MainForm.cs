@@ -3,7 +3,7 @@ using System.Drawing;
 using System.Text;
 using System.Text.Json;
 
-namespace EAgent;
+namespace DeepseekDesktopAgent;
 
 public sealed class MainForm : Form, IToolHost
 {
@@ -91,7 +91,7 @@ public sealed class MainForm : Form, IToolHost
 
     private void BuildUi()
     {
-        Text = "EAgent C#";
+        Text = "Deepseek-Desktop-Agent";
         ClientSize = new Size(1220, 780);
         MinimumSize = new Size(1020, 660);
         StartPosition = FormStartPosition.CenterScreen;
@@ -417,7 +417,7 @@ public sealed class MainForm : Form, IToolHost
         flow.Controls.Add(SectionLabel("关于"));
         flow.Controls.Add(new Label
         {
-            Text = "EAgent C# 重构版\n" +
+            Text = "Deepseek-Desktop-Agent · C# 重构版\n" +
                    "DeepSeek 网页版 + CDP 自动化。工具协议与原版保持一致。\n" +
                    "配置目录：" + AppPaths.AppDataDir + "\n" +
                    "临时目录（每次启动清空）：" + _tempDir,
@@ -517,7 +517,7 @@ public sealed class MainForm : Form, IToolHost
             {
                 var result = MessageBox.Show(this,
                     $"发现新版本：{latest}\r\n当前版本：{UpdateChecker.CurrentVersion}\r\n\r\n是否打开发布页？",
-                    "EAgent 更新", MessageBoxButtons.YesNo, MessageBoxIcon.Information);
+                    "Deepseek-Desktop-Agent 更新", MessageBoxButtons.YesNo, MessageBoxIcon.Information);
                 if (result == DialogResult.Yes) UpdateChecker.OpenReleasesPage();
             }
         }
@@ -559,7 +559,7 @@ public sealed class MainForm : Form, IToolHost
 
         using var dialog = new FolderBrowserDialog
         {
-            Description = "选择 EAgent 的工作目录",
+            Description = "选择 Deepseek-Desktop-Agent 的工作目录",
             UseDescriptionForTitle = true,
             SelectedPath = Directory.Exists(_cfg.WorkDir) ? _cfg.WorkDir : ""
         };
@@ -720,7 +720,7 @@ public sealed class MainForm : Form, IToolHost
         if (_busy) return;
         if (_browser == null || _cdp == null || !_browser.IsAlive)
         {
-            MessageBox.Show(this, "请先选择工作目录并启动 DeepSeek 浏览器。", "EAgent", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            MessageBox.Show(this, "请先选择工作目录并启动 DeepSeek 浏览器。", "Deepseek-Desktop-Agent", MessageBoxButtons.OK, MessageBoxIcon.Information);
             return;
         }
 
@@ -793,7 +793,7 @@ public sealed class MainForm : Form, IToolHost
         {
             SetStatus("运行失败: " + ex.Message);
             ShowReply("!![运行错误]!!\n" + ex.Message);
-            MessageBox.Show(this, ex.Message, "EAgent 运行错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            MessageBox.Show(this, ex.Message, "Deepseek-Desktop-Agent 运行错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
         finally
         {
@@ -857,7 +857,7 @@ public sealed class MainForm : Form, IToolHost
         }
         if (_cdp == null || _browser == null || !_browser.IsAlive)
         {
-            MessageBox.Show(this, "请先启动 DeepSeek 浏览器。", "EAgent", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            MessageBox.Show(this, "请先启动 DeepSeek 浏览器。", "Deepseek-Desktop-Agent", MessageBoxButtons.OK, MessageBoxIcon.Information);
             return;
         }
 
@@ -898,7 +898,7 @@ public sealed class MainForm : Form, IToolHost
     {
         if (_browser == null || !_browser.IsAlive)
         {
-            MessageBox.Show(this, "DeepSeek 浏览器尚未启动。", "EAgent", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            MessageBox.Show(this, "DeepSeek 浏览器尚未启动。", "Deepseek-Desktop-Agent", MessageBoxButtons.OK, MessageBoxIcon.Information);
             return;
         }
 
@@ -1039,7 +1039,7 @@ public sealed class MainForm : Form, IToolHost
 
     private void ResetConfig()
     {
-        if (MessageBox.Show(this, "确定要重置所有配置吗？", "EAgent", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes)
+        if (MessageBox.Show(this, "确定要重置所有配置吗？", "Deepseek-Desktop-Agent", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes)
             return;
         _cfg = new AppConfig();
         ConfigService.Save(_cfg);

@@ -1,3 +1,232 @@
-<!doctypehtml><html lang=zh-CN><meta charset=UTF-8><meta content="width=device-width,initial-scale=1"name=viewport><title>EAgent · 0 tokens、0 门槛、轻量级</title><style>*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{background:#05060a;color:#eef1f7;font:16px/1.75 -apple-system,"Segoe UI","Microsoft YaHei",system-ui,sans-serif;-webkit-font-smoothing:antialiased;overflow-x:hidden}body::before{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;background:radial-gradient(900px 620px at 12% -12%,rgba(77,141,255,.3),transparent 62%),radial-gradient(760px 520px at 96% 4%,rgba(124,92,255,.24),transparent 60%),radial-gradient(900px 700px at 50% 112%,rgba(0,229,201,.1),transparent 60%)}.nav{position:fixed;top:0;left:0;right:0;z-index:20;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 26px;backdrop-filter:blur(14px);background:rgba(5,6,10,.55);border-bottom:1px solid rgba(255,255,255,.08)}.nav b{font-size:14px;letter-spacing:.2em}.nav nav{display:flex;gap:20px;flex-wrap:wrap}.nav a{color:#8b93a7;text-decoration:none;font-size:13.5px;letter-spacing:.04em;transition:.2s}.nav a:hover{color:#fff}.hero{min-height:100vh;display:flex;flex-direction:column;justify-content:center;padding:150px 0 110px}.eyebrow{font:12.5px/1 ui-monospace,Consolas,monospace;letter-spacing:.28em;text-transform:uppercase;color:#6f7a92;margin-bottom:26px}h1{font-size:clamp(64px,15vw,190px);line-height:.86;letter-spacing:-.055em;font-weight:800;background:linear-gradient(180deg,#fff 12%,#8fa6d8 62%,#4d8dff 130%);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 30px 70px rgba(77,141,255,.28))}.kicker{margin-top:26px;font-size:clamp(19px,2.6vw,30px);font-weight:600;letter-spacing:-.01em}.sub{margin-top:14px;max-width:640px;color:#a4adc2;font-size:clamp(15px,1.6vw,18px)}.cta{display:flex;gap:14px;margin-top:42px;flex-wrap:wrap}.btn{display:inline-flex;align-items:center;padding:15px 30px;border-radius:100px;text-decoration:none;font-weight:650;font-size:15px;transition:transform .18s,box-shadow .18s,background .18s}.btn.p{background:#eef1f7;color:#05060a;box-shadow:0 14px 40px rgba(238,241,247,.16)}.btn.p:hover{transform:translateY(-2px);box-shadow:0 20px 50px rgba(238,241,247,.26)}.btn.g{border:1px solid rgba(255,255,255,.18);color:#dbe1ee}.btn.g:hover{background:rgba(255,255,255,.07);transform:translateY(-2px)}.sec{position:relative;z-index:1;padding:96px 0;border-top:1px solid rgba(255,255,255,.08)}.num{font:12px/1 ui-monospace,Consolas,monospace;letter-spacing:.3em;color:#4d8dff}h2{font-size:clamp(30px,5vw,56px);line-height:1.05;letter-spacing:-.035em;font-weight:750;margin:14px 0 34px}h3{font-size:19px;letter-spacing:-.01em;margin:34px 0 14px;font-weight:700}p{color:#b6bed1;margin:0 0 14px}strong{color:#fff;font-weight:650}a{color:#7ea6ff}ul{list-style:none}ul li{position:relative;padding-left:26px;margin-bottom:12px;color:#b6bed1}ul li::before{content:"";position:absolute;left:2px;top:.72em;width:8px;height:8px;border-radius:50%;background:#4d8dff;box-shadow:0 0 14px rgba(77,141,255,.9)}ul ul{margin:10px 0 10px 2px}ul ul li::before{background:#2b3550;box-shadow:none;width:6px;height:6px}code{font-family:ui-monospace,Consolas,monospace;font-size:.92em;background:rgba(255,255,255,.08);padding:.15em .45em;border-radius:6px;color:#dbe6ff}pre{background:#0a0d16;border:1px solid rgba(255,255,255,.09);border-radius:16px;padding:22px;overflow-x:auto;margin:16px 0}pre code{background:0 0;padding:0;font-size:13.5px;line-height:1.7;color:#9fb2d6}.card{background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.09);border-radius:20px;padding:26px 28px;margin:18px 0}figure{margin:0}figure{margin:0;width:100%;background:rgba(255,255,255,.02);padding:8px;border-radius:14px;border:1px solid rgba(255,255,255,.06);display:flex;flex-direction:column;box-shadow:0 10px 30px rgba(0,0,0,.2)}figure img{width:100%;height:auto;display:block;border-radius:10px;border:1px solid rgba(255,255,255,.1);background:#0b0e18}figcaption{font:12px/1.6 ui-monospace,Consolas,monospace;color:#5f6a82;margin-top:10px;letter-spacing:.08em}.imgs{display:flex;flex-direction:column;gap:20px;margin:32px auto;align-items:center;max-width:520px}.warn{border-left:3px solid #ff8a3d}.tag{display:inline-block;font:11.5px/1 ui-monospace,Consolas,monospace;letter-spacing:.16em;color:#9fb2d6;border:1px solid rgba(255,255,255,.14);border-radius:100px;padding:7px 13px;margin:0 8px 8px 0}footer{position:relative;z-index:1;border-top:1px solid rgba(255,255,255,.08);padding:52px 0 70px;color:#5f6a82;font-size:13.5px}.reveal{opacity:0;transform:translateY(26px);transition:opacity .7s cubic-bezier(.2,.7,.3,1),transform .7s cubic-bezier(.2,.7,.3,1)}.reveal.in{opacity:1;transform:none}@media (prefers-reduced-motion:reduce){.reveal{opacity:1;transform:none;transition:none}}@media (max-width:640px){.container{padding:0 18px}.nav{padding:12px 18px}.nav nav{display:none}.hero{min-height:auto;padding:112px 0 72px}.hero h1{font-size:clamp(58px,20vw,88px);letter-spacing:-.04em}.kicker{font-size:18px;margin-top:18px}.sub{font-size:14.5px;margin-top:12px}.cta{flex-direction:column;gap:10px;margin-top:30px}.btn{width:100%;justify-content:center;min-height:50px;padding:15px 20px}.sec{padding:62px 0}h2{font-size:clamp(26px,8vw,36px);margin:12px 0 24px}h3{font-size:17px;margin:26px 0 12px}p,ul li{font-size:14.8px}ul li{padding-left:22px}pre{padding:15px;border-radius:12px}pre code{font-size:12.5px;-webkit-overflow-scrolling:touch}figure img{border-radius:10px}.card{padding:20px;border-radius:16px}.tag{font-size:11px;padding:6px 11px}.reveal{transform:translateY(14px)}a,body,button{touch-action:manipulation}}</style><header class=nav><b>EAGENT</b><nav><a href=#req>环境要求</a><a href=#origin>起源</a><a href=#quick>快速使用</a><a href=#how>实现原理</a><a href=#notice>声明</a></nav></header><main><section class="container reveal hero in"><p class=eyebrow>DeepSeek 网页版 · Agent · GPL-3.0<h1>EAgent</h1><p class=kicker>0 tokens、0门槛 、轻量级 | 基于 DeepSeek 网页版制作的 Agent —— 让 deepseek "操控"你的电脑。<p class=sub>用 CDP 自动化模拟用户操作，让 DeepSeek 网页版编辑电脑文件、看屏幕、控制键盘鼠标、编辑 Excel/Word。<div class=cta><a href=https://github.com/YaoGaoChaoLe/EAgent/releases class="btn p">下载 EAgent</a> <a href=https://github.com/YaoGaoChaoLe/EAgent/ class="btn g">开源仓库</a></div></section><section class=sec id=req><div class="container reveal"><p class=num>01<h2>环境要求</h2><ul><li>Edge 浏览器(电脑自带)<li>Win10/11 <code>理论上支持所有 Win，但我没测试过喵</code></ul></div></section><section class=sec id=origin><div class="container reveal"><p class=num>02<h2>起源 —— 为了省钱</h2><h3>先说一下网络上的项目：</h3><ul><li><code>DeepSeek Harness</code> 等正经的 Agent：它们的功能都比 EAgent 强大 100 倍！<strong>但它们都要 API-Key、都要花钱买 token</strong><li><code>网页反代</code> 等同类非正经的 Agent：都通过反代等技术手段实现白嫖 token，功能也很强大，但他们封号概率很大！<li>...本项目核心是cdp自动化操控、封号概率更小 (但概率不为0，详细划到最底下看声明)</ul><h3>再看我的情况：</h3><ul><li>用 <code>正经的 Agent</code> 嘛...我是个穷B、又不搞啥企业级牛逼哄哄的 Agent 工作、也不专业搞计算机，没必要买 token 。而且这个蓝色大肥鱼有时候他妈的会吃白饭，思考陷入死循环了一直吃干我的 token ，白瞎了十多块钱。所以我一直用免费的 DeepSeek 网页版。<li>用 <code>非正经的 Agent</code> 嘛...我又怕反代把我号封了。那我自己搓一个呗...</ul><ul><li>是个硅基生物都知道：DeepSeek 网页无法直接编辑电脑文件。最多生成代码、然后复制粘贴，非常麻烦，它不能"操控"我的电脑。<li>我想，直接生成 PowerShell 代码、执行、结果扔回去，不就好了吗？卧槽对啊，然后问deepseek有啥想法，啊...就有了这个项目。<li>本项目能让 DeepSeek 网页版 —— 编辑电脑文件、能看电脑屏幕、能控制你的键盘和鼠标、能编辑 Excel/Word ！...还能更多，正在持续开发中...</ul></div></section><style>.container{max-width:1120px;margin:0 auto;padding:0 26px;position:relative;z-index:1}</style><section class=sec id=quick><div class="container reveal"><p class=num>03<h2>快速使用</h2><ul><li>下载文件：<a href=https://github.com/YaoGaoChaoLe/EAgent/releases>点我下载</a><li>运行 <code>EAgentWeb.exe</code><li>进入程序，点击 <code>选择工作目录</code> 按钮，选择一个目录。<li>然后会自动打开 Edge 浏览器，请自行登录后，才能进行下一步操作。<li>点击 <code>开始新对话</code> 。等待 Ai 分析提示词...<li>到你回复它了 —— 用 EAgent 发消息，而<strong>不是用网页版发消息</strong>。 <code>网页版的唯一作用就是给你看的，而不是发消息的。</code></ul><div class=imgs><figure><img alt=1 loading=lazy src=https://github.com/user-attachments/assets/10cad7ef-6469-4ffe-8c03-fbf0f86d26a2><figcaption>图 1 · EAgent 主界面</figcaption></figure><figure><img alt=2 loading=lazy src=https://github.com/user-attachments/assets/dc63d9d4-f535-4679-96f3-05049d563f4d><figcaption>图 2 · 选择工作目录与新对话</figcaption></figure><figure><img alt=3 loading=lazy src=https://github.com/user-attachments/assets/ad845430-8d07-4a55-b26d-96de26b25793><figcaption>图 3 · DeepSeek 网页端自动执行</figcaption></figure></div></div></section><section class=sec id=how><div class="container reveal"><p class=num>04<h2>实现原理 —— 自动化脚本</h2><ul><li>EAgent <strong>不是反代</strong>、没第三方中转、没逆向 DeepSeek 网页！<li>核心原理是：cdp自动化模拟用户操作，<strong>和反代一样均违反了 <a href=https://cdn.deepseek.com/policies/zh-CN/deepseek-terms-of-use.html>DeepSeek 用户协议</a></strong>。<li>以下是AI对本项目原理总结：</ul><pre><code>用 PowerShell 连接 Chrome/Edge 调试端口，
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Deepseek Desktop Agent · 0 tokens、0 门槛、轻量级</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:#05060a;color:#eef1f7;font:16px/1.75 -apple-system,"Segoe UI","Microsoft YaHei",system-ui,sans-serif;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+body::before{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;background:radial-gradient(900px 620px at 12% -12%,rgba(77,141,255,.3),transparent 62%),radial-gradient(760px 520px at 96% 4%,rgba(124,92,255,.24),transparent 60%),radial-gradient(900px 700px at 50% 112%,rgba(0,229,201,.1),transparent 60%)}
+.container{max-width:1120px;margin:0 auto;padding:0 26px;position:relative;z-index:1}
+.nav{position:fixed;top:0;left:0;right:0;z-index:20;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 26px;backdrop-filter:blur(14px);background:rgba(5,6,10,.55);border-bottom:1px solid rgba(255,255,255,.08)}
+.nav b{font-size:13px;letter-spacing:.18em;white-space:nowrap}
+.nav nav{display:flex;gap:20px;flex-wrap:wrap}
+.nav a{color:#8b93a7;text-decoration:none;font-size:13.5px;letter-spacing:.04em;transition:.2s}
+.nav a:hover{color:#fff}
+.hero{min-height:100vh;display:flex;flex-direction:column;justify-content:center;padding:150px 0 110px}
+.eyebrow{font:12.5px/1 ui-monospace,Consolas,monospace;letter-spacing:.28em;text-transform:uppercase;color:#6f7a92;margin-bottom:26px}
+h1{font-size:clamp(44px,8.6vw,112px);line-height:.92;letter-spacing:-.045em;font-weight:800;background:linear-gradient(180deg,#fff 12%,#8fa6d8 62%,#4d8dff 130%);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 30px 70px rgba(77,141,255,.28))}
+.kicker{margin-top:26px;font-size:clamp(19px,2.6vw,30px);font-weight:600;letter-spacing:-.01em}
+.sub{margin-top:14px;max-width:680px;color:#a4adc2;font-size:clamp(15px,1.6vw,18px)}
+.cta{display:flex;gap:14px;margin-top:42px;flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;padding:15px 30px;border-radius:100px;text-decoration:none;font-weight:650;font-size:15px;transition:transform .18s,box-shadow .18s,background .18s}
+.btn.p{background:#eef1f7;color:#05060a;box-shadow:0 14px 40px rgba(238,241,247,.16)}
+.btn.p:hover{transform:translateY(-2px);box-shadow:0 20px 50px rgba(238,241,247,.26)}
+.btn.g{border:1px solid rgba(255,255,255,.18);color:#dbe1ee}
+.btn.g:hover{background:rgba(255,255,255,.07);transform:translateY(-2px)}
+.sec{position:relative;z-index:1;padding:96px 0;border-top:1px solid rgba(255,255,255,.08)}
+.num{font:12px/1 ui-monospace,Consolas,monospace;letter-spacing:.3em;color:#4d8dff}
+h2{font-size:clamp(30px,5vw,56px);line-height:1.05;letter-spacing:-.035em;font-weight:750;margin:14px 0 34px}
+h3{font-size:19px;letter-spacing:-.01em;margin:34px 0 14px;font-weight:700}
+p{color:#b6bed1;margin:0 0 14px}
+strong{color:#fff;font-weight:650}
+a{color:#7ea6ff}
+ul{list-style:none}
+ul li{position:relative;padding-left:26px;margin-bottom:12px;color:#b6bed1}
+ul li::before{content:"";position:absolute;left:2px;top:.72em;width:8px;height:8px;border-radius:50%;background:#4d8dff;box-shadow:0 0 14px rgba(77,141,255,.9)}
+code{font-family:ui-monospace,Consolas,monospace;font-size:.92em;background:rgba(255,255,255,.08);padding:.15em .45em;border-radius:6px;color:#dbe6ff}
+pre{background:#0a0d16;border:1px solid rgba(255,255,255,.09);border-radius:16px;padding:22px;overflow-x:auto;margin:16px 0}
+pre code{background:0 0;padding:0;font-size:13.5px;line-height:1.7;color:#9fb2d6}
+.card{background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.09);border-radius:20px;padding:26px 28px;margin:18px 0}
+.warn{border-left:3px solid #ff8a3d}
+.tag{display:inline-block;font:11.5px/1 ui-monospace,Consolas,monospace;letter-spacing:.16em;color:#9fb2d6;border:1px solid rgba(255,255,255,.14);border-radius:100px;padding:7px 13px;margin:0 8px 8px 0}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin:26px 0}
+.chip{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:20px 22px}
+.chip h3{margin:0 0 8px;font-size:16.5px}
+.chip p{margin:0;font-size:14px;color:#9aa3b8}
+footer{position:relative;z-index:1;border-top:1px solid rgba(255,255,255,.08);padding:52px 0 70px;color:#5f6a82;font-size:13.5px}
+.reveal{opacity:0;transform:translateY(26px);transition:opacity .7s cubic-bezier(.2,.7,.3,1),transform .7s cubic-bezier(.2,.7,.3,1)}
+.reveal.in{opacity:1;transform:none}
+@media (prefers-reduced-motion:reduce){.reveal{opacity:1;transform:none;transition:none}}
+@media (max-width:640px){
+.container{padding:0 18px}
+.nav{padding:12px 18px}
+.nav nav{display:none}
+.hero{min-height:auto;padding:112px 0 72px}
+.hero h1{font-size:clamp(40px,13vw,64px);letter-spacing:-.03em}
+.kicker{font-size:18px;margin-top:18px}
+.sub{font-size:14.5px;margin-top:12px}
+.cta{flex-direction:column;gap:10px;margin-top:30px}
+.btn{width:100%;justify-content:center;min-height:50px;padding:15px 20px}
+.sec{padding:62px 0}
+h2{font-size:clamp(26px,8vw,36px);margin:12px 0 24px}
+h3{font-size:17px;margin:26px 0 12px}
+p,ul li{font-size:14.8px}
+ul li{padding-left:22px}
+pre{padding:15px;border-radius:12px}
+pre code{font-size:12.5px;-webkit-overflow-scrolling:touch}
+.card{padding:20px;border-radius:16px}
+.tag{font-size:11px;padding:6px 11px}
+.reveal{transform:translateY(14px)}
+a,body,button{touch-action:manipulation}
+}
+</style>
+</head>
+<body>
+<header class="nav">
+  <b>DEEPSEEK DESKTOP AGENT</b>
+  <nav>
+    <a href="#req">环境要求</a>
+    <a href="#origin">起源</a>
+    <a href="#quick">快速使用</a>
+    <a href="#how">实现原理</a>
+    <a href="#update">本次更新</a>
+    <a href="#notice">声明</a>
+  </nav>
+</header>
+
+<main>
+  <section class="container reveal hero">
+    <p class="eyebrow">DeepSeek 网页版 · C# · GPL-3.0</p>
+    <h1>Deepseek<br>Desktop Agent</h1>
+    <p class="kicker">0 tokens、0 门槛、轻量级 —— 让 DeepSeek 网页版「操控」你的电脑。</p>
+    <p class="sub">用 CDP 自动化模拟用户操作，让 DeepSeek 网页版编辑电脑文件、看屏幕、控制键盘鼠标、编辑 Excel/Word。C# 重写，单文件运行。</p>
+    <div class="cta">
+      <a class="btn p" href="https://github.com/Meversation/Deepseek-Desktop-Agent/releases">下载 Deepseek Desktop Agent</a>
+      <a class="btn g" href="https://github.com/Meversation/Deepseek-Desktop-Agent/">开源仓库</a>
+    </div>
+  </section>
+
+  <section class="sec" id="req">
+    <div class="container reveal">
+      <p class="num">01</p>
+      <h2>环境要求</h2>
+      <ul>
+        <li>Windows 10 / 11</li>
+        <li>Microsoft Edge（系统自带）或 Google Chrome</li>
+        <li>需要 .NET 10 SDK 仅用于自行构建；发布版为自包含单文件，无需安装运行时</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="sec" id="origin">
+    <div class="container reveal">
+      <p class="num">02</p>
+      <h2>起源 —— 为了省钱</h2>
+      <h3>先说一下网络上的项目：</h3>
+      <ul>
+        <li><code>DeepSeek Harness</code> 等正经的 Agent 功能更强，<strong>但都需要 API-Key、都要花钱买 token</strong>。</li>
+        <li><code>网页反代</code> 等同类方案通过反代白嫖 token，功能强大，但封号概率很大。</li>
+        <li>本项目采用 CDP 自动化操控网页，封号概率相对更小（但不为 0，详见页尾声明）。</li>
+      </ul>
+      <h3>再看这个项目的由来：</h3>
+      <ul>
+        <li>DeepSeek 网页无法直接编辑电脑文件，最多生成代码再复制粘贴，不能真正「操控」电脑。</li>
+        <li>思路很直接：让它生成 PowerShell，执行，再把结果扔回去。</li>
+        <li>于是有了这个项目：DeepSeek 网页版可以编辑文件、看屏幕、控制键鼠、编辑 Excel/Word。</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="sec" id="quick">
+    <div class="container reveal">
+      <p class="num">03</p>
+      <h2>快速使用</h2>
+      <ul>
+        <li>从 <a href="https://github.com/Meversation/Deepseek-Desktop-Agent/releases">Releases</a> 下载 <code>Deepseek-Desktop-Agent.exe</code>。</li>
+        <li>右键选择以管理员身份运行。</li>
+        <li>点击 <code>选择工作目录</code>，选择一个目录。</li>
+        <li>程序会自动启动 Edge/Chrome 并打开 DeepSeek，请先自行登录。</li>
+        <li>点击 <code>开始 / 继续</code>，等待 AI 读取系统提示词。</li>
+        <li>之后在 Deepseek Desktop Agent 的输入框发消息，<strong>不要用网页版发消息</strong>。网页窗口仅用于查看。</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="sec" id="how">
+    <div class="container reveal">
+      <p class="num">04</p>
+      <h2>实现原理 —— 自动化脚本</h2>
+      <ul>
+        <li>本项目<strong>不是反代</strong>，没有第三方中转，也没有逆向 DeepSeek 网页。</li>
+        <li>核心是 CDP 自动化模拟用户操作，<strong>与反代一样违反了 <a href="https://cdn.deepseek.com/policies/zh-CN/deepseek-terms-of-use.html">DeepSeek 用户协议</a></strong>。</li>
+      </ul>
+<pre><code>连接 Chrome/Edge 调试端口（默认 9222），
 通过 CDP WebSocket 在 DeepSeek 页面里执行 JavaScript，
-模拟输入、上传文件、点击发送，并轮询判断助手回复是否完成、返回助手回复信息。</code></pre></div></section><section class=sec id=notice><div class="container reveal"><p class=num>05<h2>声明 —— 风险与利益共存，一分钱一分货</h2><h3>您应该清楚：</h3><ul><li>EAgent 轻量级的设计：整个文件大小连 3 MB都不到的一个 .exe 小软件，只能当玩具玩/学习交流，不可用于生产环境；<li>EAgent 无安全措施：DeepSeek 可能生成恶意代码、再通过 EAgent 破坏系统；<li><a href=https://cdn.deepseek.com/policies/zh-CN/deepseek-terms-of-use.html>DeepSeek 用户协议</a>：DeepSeek 网页本来就禁止被白嫖 —— EAgent 动了别人的蛋糕，<strong>极端高频滥用</strong>会被 DeepSeek 暂时封禁<code>(比如连续4小时写10万行代码)</code>。作者不承担责任；</ul><div class="card warn"><h3>病毒问题</h3><p>本项目由 <code>e语言</code> 编写，由于其一言难尽的狗屎编译器，使部分杀毒软件误报木马病毒。但我保证：<strong>本项目自身不会带有任何恶意代码，请放心使用。</strong><a href=https://github.com/user-attachments/files/33344596/_3ef75307f364aac0ab0212977530d167eadcc090084ce65829f8e4678737dcf7.pdf>微步云-样本分析报告.pdf</a></div><p>本项目创建于 2026 年 10 月 8 日，目前处于开发阶段。遵循 <code>GPL-3.0</code> 协议，开源仓库 <a href=https://github.com/YaoGaoChaoLe/EAgent/ >https://github.com/YaoGaoChaoLe/EAgent/</a><div style=margin-top:26px><span class=tag>0 TOKENS</span><span class=tag>0 门槛</span><span class=tag>轻量级</span><span class=tag>CDP 自动化</span><span class=tag>GPL-3.0</span></div></div></section></main><footer><div class=container>EAgent · 让 DeepSeek 网页版"操控"你的电脑 · 开源仓库 <a href=https://github.com/YaoGaoChaoLe/EAgent/ >YaoGaoChaoLe/EAgent</a></div></footer><script>!function(){var n,e=document.querySelectorAll(".reveal");"IntersectionObserver"in window?(n=new IntersectionObserver(function(e){e.forEach(function(e){e.isIntersecting&&(e.target.classList.add("in"),n.unobserve(e.target))})},{threshold:.12}),e.forEach(function(e){n.observe(e)})):e.forEach(function(e){e.classList.add("in")})}()</script>
+模拟输入、上传文件、点击发送，
+并轮询判断助手回复是否完成、返回助手回复内容。</code></pre>
+    </div>
+  </section>
+
+  <section class="sec" id="update">
+    <div class="container reveal">
+      <p class="num">05</p>
+      <h2>本次更新 —— C# 重写</h2>
+      <p>界面与运行时由 C# / WinForms 重写，工具协议与提示词保持一致，原有逻辑不变。</p>
+      <div class="grid">
+        <div class="chip"><h3>编码修复</h3><p>提示词与脚本统一 UTF-8，读取中文文件不再乱码。</p></div>
+        <div class="chip"><h3>窗口内嵌</h3><p>DeepSeek 窗口不可单独关闭，随主程序退出，也可一键还原为独立窗口。</p></div>
+        <div class="chip"><h3>后台执行</h3><p>PowerShell 在后台运行，不弹黑框，指令与输出实时显示在内置选项卡。</p></div>
+        <div class="chip"><h3>双输入框</h3><p>主程序与内嵌浏览器输入框均可正常输入，焦点自动切换。</p></div>
+        <div class="chip"><h3>会话选择</h3><p>可选择历史会话继续，而不是每次误开新对话。</p></div>
+        <div class="chip"><h3>主题与快捷键</h3><p>昼夜切换不再抽搐，兼容 Ctrl+A / C / X / V / Z / Y。</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" id="notice">
+    <div class="container reveal">
+      <p class="num">06</p>
+      <h2>声明 —— 风险与利益共存</h2>
+      <h3>您应该清楚：</h3>
+      <ul>
+        <li>本项目轻量、仅供学习交流，不可用于生产环境。</li>
+        <li>无安全措施：DeepSeek 可能生成恶意代码并通过本程序破坏系统。</li>
+        <li><a href="https://cdn.deepseek.com/policies/zh-CN/deepseek-terms-of-use.html">DeepSeek 用户协议</a>禁止此类自动化使用，<strong>极端高频滥用</strong>可能被暂时封禁。作者不承担责任。</li>
+      </ul>
+      <div class="card warn">
+        <h3>杀毒软件误报</h3>
+        <p>单文件自包含程序体积较大，个别杀毒软件可能误报。本项目自身不包含任何恶意代码。</p>
+      </div>
+      <p>遵循 <code>GPL-3.0</code> 协议，开源仓库 <a href="https://github.com/Meversation/Deepseek-Desktop-Agent/">Meversation/Deepseek-Desktop-Agent</a>。</p>
+      <div style="margin-top:26px">
+        <span class="tag">0 TOKENS</span>
+        <span class="tag">0 门槛</span>
+        <span class="tag">轻量级</span>
+        <span class="tag">CDP 自动化</span>
+        <span class="tag">C# · WinForms</span>
+        <span class="tag">GPL-3.0</span>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="container">
+    Deepseek Desktop Agent · 让 DeepSeek 网页版「操控」你的电脑 · 开源仓库
+    <a href="https://github.com/Meversation/Deepseek-Desktop-Agent/">Meversation/Deepseek-Desktop-Agent</a>
+  </div>
+</footer>
+
+<script>
+(function () {
+  var items = document.querySelectorAll(".reveal");
+  if ("IntersectionObserver" in window) {
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (entry.isIntersecting) {
+          entry.target.classList.add("in");
+          io.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.12 });
+    items.forEach(function (el) { io.observe(el); });
+  } else {
+    items.forEach(function (el) { el.classList.add("in"); });
+  }
+})();
+</script>
+</body>
+</html>

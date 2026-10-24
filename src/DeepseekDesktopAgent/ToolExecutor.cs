@@ -1,7 +1,7 @@
 using System.Drawing;
 using System.Net.Http;
 
-namespace EAgent;
+namespace DeepseekDesktopAgent;
 
 public interface IToolHost
 {

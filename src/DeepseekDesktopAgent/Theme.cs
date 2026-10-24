@@ -1,6 +1,6 @@
 using System.Drawing;
 
-namespace EAgent;
+namespace DeepseekDesktopAgent;
 
 public sealed class ThemePalette
 {

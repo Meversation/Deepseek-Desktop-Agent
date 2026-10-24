@@ -2,7 +2,7 @@
 
 用 C# 重写的 Windows 桌面 Agent。基于 DeepSeek 网页版，通过 CDP 自动化操控浏览器，让 DeepSeek 能够读写文件、执行 PowerShell、截图、控制鼠标键盘和访问网络。
 
-本项目是 [EAgent](https://github.com/YaoGaoChaoLe/EAgent) 的 C# 重构版本，保留原有工具协议与提示词，移除易语言实现。
+本项目是 GPL-3.0 衍生作品，工具协议与提示词沿用原始实现，界面与运行时由 C# 重写。
 
 ## 特性
 
@@ -25,38 +25,38 @@
 需要 .NET 10 SDK。
 
 ```powershell
-dotnet build src\EAgent.CSharp\EAgent.CSharp.csproj -c Release
+dotnet build src\DeepseekDesktopAgent\DeepseekDesktopAgent.csproj -c Release
 ```
 
 发布为单文件 exe：
 
 ```powershell
-dotnet publish src\EAgent.CSharp\EAgent.CSharp.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true
+dotnet publish src\DeepseekDesktopAgent\DeepseekDesktopAgent.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true
 ```
 
-产物位于 `src\EAgent.CSharp\bin\Release\net10.0-windows\win-x64\publish\EAgent.exe`。
+产物位于 `src\DeepseekDesktopAgent\bin\Release\net10.0-windows\win-x64\publish\Deepseek-Desktop-Agent.exe`。
 
 ## 使用
 
-1. 右键 `EAgent.exe`，选择以管理员身份运行。
+1. 右键 `Deepseek-Desktop-Agent.exe`，选择以管理员身份运行。
 2. 点击“选择工作目录”，选择一个目录。
 3. 程序会启动 Edge/Chrome 并打开 DeepSeek，请先在浏览器内登录。
 4. 点击“开始 / 继续”，等待 DeepSeek 读取系统提示词。
-5. 之后的对话请在 EAgent 的输入框内发送，网页窗口仅用于查看。
+5. 之后的对话请在 Deepseek Desktop Agent 的输入框内发送，网页窗口仅用于查看。
 
 ## 数据与配置
 
-- 配置文件：`%APPDATA%\EAgent\config.json`
-- 浏览器调试配置：`%TEMP%\deepseek_debug_profile`（沿用原版路径，可复用已有登录）
-- 每次运行的临时目录：`%TEMP%\EAgent_<pid>_<随机数>`
+- 配置文件：`%APPDATA%\Deepseek-Desktop-Agent\config.json`
+- 浏览器调试配置：`%TEMP%\deepseek_debug_profile`（可复用已有登录）
+- 每次运行的临时目录：`%TEMP%\Deepseek-Desktop-Agent_<pid>_<随机数>`
 
 ## 自测
 
 ```powershell
-EAgent.exe --selftest
+Deepseek-Desktop-Agent.exe --selftest
 ```
 
-结果写入 `%TEMP%\eagent_selftest.txt`，覆盖提示词加载、六个工具解析、编码、Skill 释放和 PowerShell 后台执行。
+结果写入 `%TEMP%\deepseek_desktop_agent_selftest.txt`，覆盖提示词加载、六个工具解析、编码、Skill 释放和 PowerShell 后台执行。
 
 ## 声明
 
@@ -67,4 +67,4 @@ EAgent.exe --selftest
 
 ## 协议
 
-本项目遵循 GPL-3.0 协议，继承自 [YaoGaoChaoLe/EAgent](https://github.com/YaoGaoChaoLe/EAgent)。
+本项目遵循 GPL-3.0 协议。原始实现作者：YaoGaoChaoLe。

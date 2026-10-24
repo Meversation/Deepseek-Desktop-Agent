@@ -3,7 +3,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 
-namespace EAgent;
+namespace DeepseekDesktopAgent;
 
 public sealed class AppConfig
 {
@@ -21,7 +21,7 @@ public sealed class AppConfig
 public static class AppPaths
 {
     public static string AppDataDir =>
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "EAgent");
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Deepseek-Desktop-Agent");
 
     public static string ConfigFile => Path.Combine(AppDataDir, "config.json");
 
@@ -30,7 +30,7 @@ public static class AppPaths
 
     public static string CreateSessionTempDir()
     {
-        var dir = Path.Combine(Path.GetTempPath(), "EAgent_" + Environment.ProcessId + "_" + Random.Shared.Next(1000, 9999));
+        var dir = Path.Combine(Path.GetTempPath(), "Deepseek-Desktop-Agent_" + Environment.ProcessId + "_" + Random.Shared.Next(1000, 9999));
         Directory.CreateDirectory(dir);
         return dir;
     }
@@ -81,7 +81,7 @@ public static class Prompt
 {
     public static string Load()
     {
-        using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("EAgent.system_prompt.txt");
+        using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("DeepseekDesktopAgent.system_prompt.txt");
         if (stream == null) return string.Empty;
         using var reader = new StreamReader(stream, Encoding.UTF8, true);
         return reader.ReadToEnd();
@@ -97,7 +97,7 @@ public static class Prompt
     public static string EnsureSkills(string tempDir)
     {
         var target = Path.Combine(tempDir, "skill_all.zip");
-        using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("EAgent.skills.zip");
+        using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("DeepseekDesktopAgent.skills.zip");
         if (stream != null)
         {
             using var file = File.Create(target);
@@ -144,18 +144,18 @@ public sealed class ConversationItem
 
 public static class ToolProtocol
 {
-    public const string PowerShellHead = "# EAgent_ps_识别头_完全保留本行注释";
-    public const string PowerShellTail = "# EAgent_ps_识别尾_完全保留本行注释";
-    public const string ScreenshotHead = "# EAgent_getjpg_识别头_完全保留本行注释";
-    public const string ScreenshotTail = "# EAgent_getjpg_识别尾_完全保留本行注释";
-    public const string UploadHead = "# EAgent_getfile_识别头_完全保留本行注释";
-    public const string UploadTail = "# EAgent_getfile_识别尾_完全保留本行注释";
-    public const string MouseHead = "# EAgent_mouse_simulate_识别头_完全保留本行注释";
-    public const string MouseTail = "# EAgent_mouse_simulate_识别尾_完全保留本行注释";
-    public const string KeyboardHead = "# EAgent_keyboard_识别头_完全保留本行注释";
-    public const string KeyboardTail = "# EAgent_keyboard_识别尾_完全保留本行注释";
-    public const string HttpHead = "# EAgent_httpgetfile_识别头_完全保留本行注释";
-    public const string HttpTail = "# EAgent_httpgetfile_识别尾_完全保留本行注释";
+    public const string PowerShellHead = "# DeepseekDesktopAgent_ps_识别头_完全保留本行注释";
+    public const string PowerShellTail = "# DeepseekDesktopAgent_ps_识别尾_完全保留本行注释";
+    public const string ScreenshotHead = "# DeepseekDesktopAgent_getjpg_识别头_完全保留本行注释";
+    public const string ScreenshotTail = "# DeepseekDesktopAgent_getjpg_识别尾_完全保留本行注释";
+    public const string UploadHead = "# DeepseekDesktopAgent_getfile_识别头_完全保留本行注释";
+    public const string UploadTail = "# DeepseekDesktopAgent_getfile_识别尾_完全保留本行注释";
+    public const string MouseHead = "# DeepseekDesktopAgent_mouse_simulate_识别头_完全保留本行注释";
+    public const string MouseTail = "# DeepseekDesktopAgent_mouse_simulate_识别尾_完全保留本行注释";
+    public const string KeyboardHead = "# DeepseekDesktopAgent_keyboard_识别头_完全保留本行注释";
+    public const string KeyboardTail = "# DeepseekDesktopAgent_keyboard_识别尾_完全保留本行注释";
+    public const string HttpHead = "# DeepseekDesktopAgent_httpgetfile_识别头_完全保留本行注释";
+    public const string HttpTail = "# DeepseekDesktopAgent_httpgetfile_识别尾_完全保留本行注释";
     public const string NoToolMarker = "//[工具][无需工具]//";
 
     public static bool HasMarkers(string text)

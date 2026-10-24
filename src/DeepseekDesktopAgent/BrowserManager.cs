@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using System.Net.Http;
 
-namespace EAgent;
+namespace DeepseekDesktopAgent;
 
 public sealed class BrowserManager : IDisposable
 {

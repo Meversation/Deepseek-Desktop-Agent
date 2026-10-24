@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using System.Text;
 
-namespace EAgent;
+namespace DeepseekDesktopAgent;
 
 public sealed class PsRunResult
 {
@@ -161,7 +161,7 @@ public sealed class PowerShellRunner : IDisposable
     private static string BuildScript(string code)
     {
         var header = new StringBuilder();
-        header.AppendLine("# EAgent C# runner");
+        header.AppendLine("# Deepseek-Desktop-Agent PowerShell runner");
         header.AppendLine("$ErrorActionPreference = 'Continue'");
         header.AppendLine("$ProgressPreference = 'SilentlyContinue'");
         header.AppendLine("try { [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false) } catch { }");

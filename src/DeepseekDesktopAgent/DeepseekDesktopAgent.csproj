@@ -6,8 +6,8 @@
     <UseWindowsForms>true</UseWindowsForms>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <AssemblyName>EAgent</AssemblyName>
-    <RootNamespace>EAgent</RootNamespace>
+    <AssemblyName>Deepseek-Desktop-Agent</AssemblyName>
+    <RootNamespace>DeepseekDesktopAgent</RootNamespace>
     <ApplicationIcon>Assets\icon.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <SatelliteResourceLanguages>zh-Hans</SatelliteResourceLanguages>
@@ -16,8 +16,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="Assets\system_prompt.txt" LogicalName="EAgent.system_prompt.txt" />
-    <EmbeddedResource Include="Assets\skills.zip" LogicalName="EAgent.skills.zip" />
+    <EmbeddedResource Include="Assets\system_prompt.txt" LogicalName="DeepseekDesktopAgent.system_prompt.txt" />
+    <EmbeddedResource Include="Assets\skills.zip" LogicalName="DeepseekDesktopAgent.skills.zip" />
     <None Include="Assets\icon.ico" />
   </ItemGroup>
 
