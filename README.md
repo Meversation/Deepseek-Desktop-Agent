@@ -28,17 +28,21 @@
 dotnet build src\DeepseekDesktopAgent\DeepseekDesktopAgent.csproj -c Release
 ```
 
-发布为单文件 exe：
+发布两个版本：
 
 ```powershell
+# 自包含版：无需安装运行时
 dotnet publish src\DeepseekDesktopAgent\DeepseekDesktopAgent.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true
+
+# 依赖版：仅程序本体，需要 .NET 10 Desktop Runtime（x64）
+dotnet publish src\DeepseekDesktopAgent\DeepseekDesktopAgent.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true
 ```
 
-产物位于 `src\DeepseekDesktopAgent\bin\Release\net10.0-windows\win-x64\publish\Deepseek-Desktop-Agent.exe`。
+自包含版产物约 103 MB，依赖版约 0.6 MB。
 
 ## 使用
 
-1. 右键 `Deepseek-Desktop-Agent.exe`，选择以管理员身份运行。
+1. 下载任一版本，右键 `Deepseek-Desktop-Agent.exe`，选择以管理员身份运行。依赖版需先安装 .NET 10 Desktop Runtime。
 2. 点击“选择工作目录”，选择一个目录。
 3. 程序会启动 Edge/Chrome 并打开 DeepSeek，请先在浏览器内登录。
 4. 点击“开始 / 继续”，等待 DeepSeek 读取系统提示词。
