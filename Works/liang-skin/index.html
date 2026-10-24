@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>滑动变祖 · 皮肤效果演示</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    font-family:"Segoe UI","PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+    background:var(--l-page);color:var(--l-ink);
+    overflow:hidden;
+    transition:background-color .2s linear,color .2s linear;
+  }
+  .backdrop{
+    position:fixed;inset:0;z-index:0;overflow:hidden;pointer-events:none;
+    background:var(--l-page);transition:background-color .2s linear;
+  }
+  .backdrop img{
+    position:absolute;top:50%;right:0;
+    width:min(52vw,880px);height:100%;
+    object-fit:cover;object-position:50% 42%;
+    transform:translateY(-50%);
+    opacity:var(--l-portrait-opacity,.92);
+    -webkit-mask-image:linear-gradient(90deg,transparent 0%,rgba(0,0,0,.2) 10%,#000 30%,#000 100%);
+    mask-image:linear-gradient(90deg,transparent 0%,rgba(0,0,0,.2) 10%,#000 30%,#000 100%);
+    transition:opacity .2s linear;
+  }
+  .shell{
+    position:relative;z-index:1;height:100%;
+    display:flex;flex-direction:column;
+    padding:0 clamp(20px,5vw,64px);
+  }
+  main{
+    flex:1;display:flex;flex-direction:column;justify-content:center;
+    gap:14px;min-height:0;padding-bottom:10px;
+  }
+  .rank{
+    font-size:clamp(44px,8vw,96px);font-weight:800;letter-spacing:-.03em;line-height:1;
+    transition:color .2s linear;
+  }
+  .ranksub{
+    display:flex;align-items:center;gap:14px;
+    font-size:13px;color:var(--l-secondary);transition:color .2s linear;
+  }
+  .ranksub b{
+    font-size:16px;color:var(--l-ink);font-variant-numeric:tabular-nums;transition:color .2s linear;
+  }
+  .bar{
+    width:180px;height:4px;border-radius:2px;background:var(--l-border);
+    overflow:hidden;transition:background-color .2s linear;
+  }
+  .bar i{
+    display:block;height:100%;width:calc(var(--l-strength,1) * 100%);
+    background:var(--l-accent);
+    transition:width .12s linear,background-color .2s linear;
+  }
+  .dock{
+    padding:14px 0 34px;display:flex;flex-direction:column;align-items:center;gap:10px;
+  }
+  .sliderrow{display:flex;align-items:center;gap:16px;width:min(620px,92vw)}
+  .track{position:relative;flex:1;height:34px;display:flex;align-items:center}
+  .ticks{position:absolute;inset:0 9px;pointer-events:none;z-index:0}
+  .ticks::before{
+    content:"";position:absolute;top:50%;left:0;right:0;height:1px;
+    background:color-mix(in srgb,var(--l-secondary) 30%,transparent);
+    transform:translateY(-50%);transition:background-color .2s linear;
+  }
+  .tick{
+    position:absolute;top:50%;width:1px;height:9px;background:var(--l-secondary);
+    opacity:.42;transform:translate(-50%,-50%);transition:background-color .2s linear;
+  }
+  .tip{
+    position:absolute;z-index:4;bottom:calc(100% + 8px);
+    left:calc(9px + (100% - 18px) * var(--l-ratio,1));
+    min-width:max-content;padding:5px 9px;border-radius:7px;
+    font-size:11px;font-weight:600;line-height:16px;white-space:nowrap;
+    color:var(--l-ink);background:var(--l-layer-1);border:1px solid var(--l-border);
+    box-shadow:0 6px 18px rgba(0,0,0,.16);
+    transform:translateX(-50%);pointer-events:none;opacity:0;
+    transition:opacity .14s linear,background-color .2s linear,color .2s linear,border-color .2s linear;
+  }
+  .tip::after{
+    content:"";position:absolute;top:100%;left:50%;width:7px;height:7px;
+    background:inherit;border-right:1px solid var(--l-border);border-bottom:1px solid var(--l-border);
+    transform:translate(-50%,-4px) rotate(45deg);
+  }
+  .track:hover .tip,.track.dragging .tip,.track:focus-within .tip{opacity:1}
+  input[type=range]{
+    position:relative;z-index:1;width:100%;height:34px;background:transparent;
+    -webkit-appearance:none;appearance:none;cursor:ew-resize;
+  }
+  input[type=range]:focus{outline:none}
+  input[type=range]::-webkit-slider-runnable-track{height:1px;background:transparent}
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;appearance:none;
+    width:14px;height:14px;margin-top:-6.5px;border-radius:50%;
+    border:1.5px solid color-mix(in srgb,var(--l-secondary) 72%,transparent);
+    background:radial-gradient(circle,var(--l-secondary) 0 2.2px,color-mix(in srgb,var(--l-secondary) 22%,var(--l-layer-1)) 2.8px);
+    box-shadow:0 1px 5px rgba(0,0,0,.18);
+  }
+  input[type=range]::-moz-range-track{height:1px;background:transparent}
+  input[type=range]::-moz-range-thumb{
+    width:12px;height:12px;border-radius:50%;
+    border:1.5px solid color-mix(in srgb,var(--l-secondary) 72%,transparent);
+    background:color-mix(in srgb,var(--l-secondary) 24%,var(--l-layer-1));
+  }
+  .docklabel{font-size:11px;color:var(--l-secondary);letter-spacing:.04em;transition:color .2s linear}
+  @media (max-width:820px){
+    .backdrop img{right:-16vw;width:100vw;opacity:calc(var(--l-portrait-opacity,.92) * .7)}
+  }
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="backdrop"><img id="portrait" alt=""></div>
+<div class="shell">
+  <main>
+    <div class="rank" id="rank">梁祖</div>
+    <div class="ranksub">
+      <span>推理强度</span>
+      <b id="level">30.0</b>
+      <span>/ 30</span>
+      <span class="bar"><i></i></span>
+    </div>
+  </main>
+  <div class="dock">
+    <div class="sliderrow">
+      <span class="docklabel">0</span>
+      <div class="track" id="track">
+        <div class="ticks" id="ticks"></div>
+        <div class="tip" id="tip">梁祖</div>
+        <input type="range" id="range" min="0" max="240" step="1" value="240" aria-label="滑动变祖进度">
+      </div>
+      <span class="docklabel">240</span>
+    </div>
+  </div>
+</div>
+<script>
+(function(){
+  var MAX_FRAME = 240;
+  var MAX_LEVEL = 30;
+  var RANKS = ["小难梁","牢梁","梁子","梁圣","梁神","梁祖"];
+
+  var STOPS = [
+    { at:0,  page:[232,233,229], surface:[248,248,245], surface2:[238,239,235], ink:[23,24,22],   secondary:[112,116,111], portrait:0.92 },
+    { at:6,  page:[211,211,206], surface:[239,239,234], surface2:[224,224,218], ink:[26,26,24],   secondary:[101,101,96],  portrait:0.93 },
+    { at:12, page:[171,168,162], surface:[211,208,201], surface2:[190,186,179], ink:[27,26,24],   secondary:[83,79,74],    portrait:0.94 },
+    { at:18, page:[117,112,106], surface:[154,148,140], surface2:[128,122,115], ink:[24,22,20],   secondary:[65,61,56],    portrait:0.94 },
+    { at:24, page:[43,39,37],    surface:[48,43,40],    surface2:[58,51,46],    ink:[244,241,232], secondary:[184,180,169], portrait:0.94 },
+    { at:30, page:[17,17,17],    surface:[30,27,25],    surface2:[41,35,30],    ink:[244,241,232], secondary:[184,180,169], portrait:0.94 }
+  ];
+
+  var PORTRAITS = [
+    {level:0,  file:"stage-00.webp"},
+    {level:1,  file:"level-01.webp"},
+    {level:3,  file:"level-03.webp"},
+    {level:4,  file:"level-04.webp"},
+    {level:6,  file:"stage-06.webp"},
+    {level:7,  file:"level-07.webp"},
+    {level:9,  file:"level-09.webp"},
+    {level:10, file:"level-10.webp"},
+    {level:12, file:"stage-12.webp"},
+    {level:13, file:"level-13.webp"},
+    {level:14, file:"level-14.webp"},
+    {level:15, file:"bridge-15.webp"},
+    {level:16, file:"level-16.webp"},
+    {level:17, file:"level-17.webp"},
+    {level:18, file:"stage-18.webp"},
+    {level:19, file:"level-19.webp"},
+    {level:21, file:"level-21.webp"},
+    {level:22, file:"level-22.webp"},
+    {level:24, file:"stage-24.webp"},
+    {level:25, file:"level-25.webp"},
+    {level:27, file:"bridge-27.webp"},
+    {level:28, file:"level-28.webp"},
+    {level:29, file:"level-29.webp"},
+    {level:30, file:"stage-30.webp"}
+  ];
+
+  var BASE = "assets/portrait-source-v2/";
+  var root = document.documentElement;
+
+  function clamp(v){ return Math.min(MAX_FRAME, Math.max(0, Math.round(v))); }
+  function lerp(a,b,t){ return a + (b-a) * t; }
+  function mixc(a,b,t){ return [Math.round(lerp(a[0],b[0],t)),Math.round(lerp(a[1],b[1],t)),Math.round(lerp(a[2],b[2],t))]; }
+  function rgb(v,a){
+    if (a === undefined || a === 1) return "rgb(" + v[0] + " " + v[1] + " " + v[2] + ")";
+    return "rgb(" + v[0] + " " + v[1] + " " + v[2] + " / " + a + ")";
+  }
+
+  function rankForLevel(level){
+    var idx = level >= MAX_LEVEL ? RANKS.length - 1 : Math.floor(level / 6);
+    return RANKS[Math.min(RANKS.length - 1, Math.max(0, idx))];
+  }
+
+  function nearestPortrait(level){
+    var best = PORTRAITS[0];
+    var dist = Math.abs(best.level - level);
+    for (var i = 1; i < PORTRAITS.length; i++){
+      var d = Math.abs(PORTRAITS[i].level - level);
+      if (d < dist || (d === dist && PORTRAITS[i].level > best.level)) {
+        best = PORTRAITS[i];
+        dist = d;
+      }
+    }
+    return best;
+  }
+
+  function palette(frame){
+    var f = clamp(frame);
+    var level = f / MAX_FRAME * MAX_LEVEL;
+    var stage = Math.min(5, Math.floor(level / 6));
+    var from = STOPS[stage];
+    var to = STOPS[Math.min(5, stage + 1)];
+    var amount = from === to ? 0 : (level - from.at) / (to.at - from.at);
+    var dark = level >= 24;
+    var ui = dark ? STOPS[5] : STOPS[0];
+    var page = ui.page, surface = ui.surface, surface2 = ui.surface2;
+    var ink = ui.ink, secondary = ui.secondary;
+    var accent = dark ? [193,154,73] : [65,118,230];
+    var accentHover = mixc(accent, ink, 0.13);
+    var sidebar = mixc(page, surface2, 0.25);
+    return {
+      frame: f,
+      level: level,
+      dark: dark,
+      page: page,
+      surface: surface,
+      surface2: surface2,
+      sidebar: sidebar,
+      ink: ink,
+      secondary: secondary,
+      tertiary: mixc(secondary, page, 0.28),
+      accent: accent,
+      accentHover: accentHover,
+      border: rgb(ink, dark ? 0.15 : 0.12),
+      hover: rgb(ink, dark ? 0.09 : 0.07),
+      portraitOpacity: lerp(from.portrait, to.portrait, amount),
+      strength: level / MAX_LEVEL,
+      rank: rankForLevel(level),
+      portrait: nearestPortrait(level)
+    };
+  }
+
+  var elPortrait = document.getElementById("portrait");
+  var elRank = document.getElementById("rank");
+  var elLevel = document.getElementById("level");
+  var elRange = document.getElementById("range");
+  var elTrack = document.getElementById("track");
+  var elTip = document.getElementById("tip");
+  var elTicks = document.getElementById("ticks");
+  var lastFile = "";
+
+  function apply(frame){
+    var p = palette(frame);
+    var s = root.style;
+    s.setProperty("--l-page", rgb(p.page));
+    s.setProperty("--l-layer-1", rgb(p.surface, 0.94));
+    s.setProperty("--l-layer-2", rgb(p.surface2, 0.96));
+    s.setProperty("--l-sidebar", rgb(p.sidebar, 0.96));
+    s.setProperty("--l-ink", rgb(p.ink));
+    s.setProperty("--l-secondary", rgb(p.secondary));
+    s.setProperty("--l-tertiary", rgb(p.tertiary));
+    s.setProperty("--l-border", p.border);
+    s.setProperty("--l-hover", p.hover);
+    s.setProperty("--l-accent", rgb(p.accent));
+    s.setProperty("--l-accent-hover", rgb(p.accentHover));
+    s.setProperty("--l-portrait-opacity", String(p.portraitOpacity));
+    s.setProperty("--l-strength", String(p.strength));
+    s.setProperty("--l-ratio", String(p.frame / MAX_FRAME));
+
+    if (p.portrait.file !== lastFile){
+      lastFile = p.portrait.file;
+      elPortrait.src = BASE + p.portrait.file;
+    }
+
+    elRank.textContent = p.rank;
+    elLevel.textContent = p.level.toFixed(1);
+    elTip.textContent = p.rank + " · Lv." + p.level.toFixed(0);
+  }
+
+  for (var i = 0; i < PORTRAITS.length; i++){
+    var tick = document.createElement("span");
+    tick.className = "tick";
+    tick.style.left = (PORTRAITS[i].level / MAX_LEVEL * 100) + "%";
+    elTicks.appendChild(tick);
+
+    var pre = new Image();
+    pre.src = BASE + PORTRAITS[i].file;
+  }
+
+  elRange.addEventListener("input", function(e){
+    apply(Number(e.target.value));
+  });
+  elRange.addEventListener("pointerdown", function(){ elTrack.classList.add("dragging"); });
+  window.addEventListener("pointerup", function(){ elTrack.classList.remove("dragging"); });
+
+  elRange.value = String(MAX_FRAME);
+  apply(MAX_FRAME);
+})();
+</script>
+</body>
+</html>

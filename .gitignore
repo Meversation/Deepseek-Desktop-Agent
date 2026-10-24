@@ -1,0 +1,12 @@
+# 构建产物
+[Bb]in/
+[Oo]bj/
+[Pp]ublish/
+*.user
+*.suo
+.vs/
+
+# 系统文件
+Thumbs.db
+.DS_Store
+desktop.ini
