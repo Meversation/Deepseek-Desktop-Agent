@@ -42,6 +42,27 @@ public sealed class BrowserManager : IDisposable
                 Log?.Invoke("已复用 9222 端口上的浏览器窗口");
                 return;
             }
+
+            Log?.Invoke("9222 端口已被占用，尝试在现有浏览器中打开 DeepSeek...");
+            if (await OpenDeepSeekPageAsync(port, ct))
+            {
+                var reuseDeadline = DateTime.UtcNow.AddSeconds(20);
+                while (DateTime.UtcNow < reuseDeadline)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    _hwnd = FindDeepSeekWindow();
+                    if (_hwnd != IntPtr.Zero) break;
+                    await Task.Delay(500, ct);
+                }
+                if (_hwnd != IntPtr.Zero)
+                {
+                    CaptureFloatingRect();
+                    Log?.Invoke("已复用 9222 端口上的浏览器窗口");
+                    return;
+                }
+            }
+
+            throw new InvalidOperationException("调试端口 9222 已被其他程序占用，且无法在其中打开 DeepSeek 窗口。请关闭占用该端口的浏览器后重试。");
         }
 
         var exe = FindBrowserExe();
@@ -121,6 +142,11 @@ public sealed class BrowserManager : IDisposable
         _topCrop = Math.Max(0, topCrop);
         Native.SetWindowLongPtr(_hwnd, Native.GWL_STYLE, new IntPtr(_savedStyle & ~Native.WS_THICKFRAME));
         Native.SetParent(_hwnd, host);
+        if (Native.GetParent(_hwnd) != host)
+        {
+            Native.SetWindowLongPtr(_hwnd, Native.GWL_STYLE, new IntPtr(_savedStyle));
+            throw new InvalidOperationException("内嵌 DeepSeek 窗口失败，窗口句柄可能已失效。");
+        }
         _embedded = true;
         UpdateLayout();
         Native.ShowWindow(_hwnd, Native.SW_SHOW);
@@ -167,6 +193,79 @@ public sealed class BrowserManager : IDisposable
     public void Focus()
     {
         if (IsAlive) Native.ForceFocus(_hwnd);
+    }
+
+    private static async Task<bool> OpenDeepSeekPageAsync(int port, CancellationToken ct)
+    {
+        try
+        {
+            using var req = new HttpRequestMessage(HttpMethod.Put, $"http://127.0.0.1:{port}/json/new?https://chat.deepseek.com");
+            using var resp = await Http.SendAsync(req, ct);
+            return resp.IsSuccessStatusCode;
+        }
+        catch { return false; }
+    }
+
+    public bool TryAdoptForegroundWindow()
+    {
+        var fg = Native.GetForegroundWindow();
+        if (fg == IntPtr.Zero) return false;
+        if (fg == _hwnd) return true;
+        if (!IsBrowserWindow(fg)) return false;
+        Native.GetWindowThreadProcessId(fg, out var pid);
+        if ((int)pid == Environment.ProcessId) return false;
+
+        _hwnd = fg;
+        CaptureFloatingRect();
+        Log?.Invoke("已锁定当前 DeepSeek 窗口");
+        return true;
+    }
+
+    public bool TryAdoptByBounds(double left, double top, double width, double height)
+    {
+        if (width <= 0 || height <= 0) return false;
+
+        IntPtr best = IntPtr.Zero;
+        double bestScore = double.MaxValue;
+        foreach (var hWnd in Native.EnumTopLevelWindows())
+        {
+            if (!IsBrowserWindow(hWnd)) continue;
+            if (!Native.GetWindowRect(hWnd, out var rect)) continue;
+
+            var scale = Native.GetScaleForWindow(hWnd);
+            if (scale <= 0) scale = 1;
+            var dx = Math.Abs(rect.Left - left * scale);
+            var dy = Math.Abs(rect.Top - top * scale);
+            var dw = Math.Abs(rect.Width - width * scale);
+            var dh = Math.Abs(rect.Height - height * scale);
+            var tolerance = 24 * scale;
+            if (dx > tolerance || dy > tolerance || dw > tolerance * 2 || dh > tolerance * 2) continue;
+
+            var score = dx + dy + dw + dh;
+            if (score >= bestScore) continue;
+            best = hWnd;
+            bestScore = score;
+        }
+
+        if (best == IntPtr.Zero) return false;
+        if (best == _hwnd) return true;
+        _hwnd = best;
+        CaptureFloatingRect();
+        Log?.Invoke("已按调试目标定位 DeepSeek 窗口");
+        return true;
+    }
+
+    private static bool IsBrowserWindow(IntPtr hWnd)
+    {
+        if (hWnd == IntPtr.Zero || !Native.IsWindowVisible(hWnd)) return false;
+        if (!string.Equals(Native.GetWindowClass(hWnd), "Chrome_WidgetWin_1", StringComparison.OrdinalIgnoreCase)) return false;
+        if (Native.GetParent(hWnd) != IntPtr.Zero) return false;
+        var title = Native.GetWindowTitle(hWnd);
+        if (string.IsNullOrWhiteSpace(title)) return false;
+        if (title.Contains("DevTools", StringComparison.OrdinalIgnoreCase)) return false;
+        if (title.Contains("新建标签页", StringComparison.OrdinalIgnoreCase) ||
+            title.Contains("New Tab", StringComparison.OrdinalIgnoreCase)) return false;
+        return title.Contains("DeepSeek", StringComparison.OrdinalIgnoreCase);
     }
 
     public IntPtr FindDeepSeekWindow()

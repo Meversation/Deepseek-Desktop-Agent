@@ -89,8 +89,23 @@ public sealed class MainForm : Form, IToolHost
     public bool IsAutoExecute => _chkAuto.Checked;
     public CancellationToken Token => _runCts?.Token ?? CancellationToken.None;
 
+    private static Icon? LoadAppIcon()
+    {
+        try
+        {
+            using var stream = System.Reflection.Assembly.GetExecutingAssembly()
+                .GetManifestResourceStream("DeepseekDesktopAgent.icon.ico");
+            if (stream != null) return new Icon(stream, SystemInformation.IconSize);
+        }
+        catch { }
+        try { return Icon.ExtractAssociatedIcon(Application.ExecutablePath); } catch { }
+        return null;
+    }
+
     private void BuildUi()
     {
+        var appIcon = LoadAppIcon();
+        if (appIcon != null) Icon = appIcon;
         Text = "Deepseek-Desktop-Agent";
         ClientSize = new Size(1220, 780);
         MinimumSize = new Size(1020, 660);
@@ -600,6 +615,12 @@ public sealed class MainForm : Form, IToolHost
             await _cdp.ConnectAsync(_cfg.BrowserPort, ct);
         }
 
+        if (!_browser.IsEmbedded && !_browser.TryAdoptForegroundWindow())
+        {
+            var bounds = await _cdp.GetWindowBoundsAsync(ct);
+            if (bounds is { } b) _browser.TryAdoptByBounds(b.Left, b.Top, b.Width, b.Height);
+        }
+
         if (!_browser.IsEmbedded)
         {
             var crop = await MeasureTopCropAsync(ct);
@@ -954,6 +975,11 @@ public sealed class MainForm : Form, IToolHost
             _cdp = new CdpClient();
             await _cdp.ConnectAsync(_cfg.BrowserPort, CancellationToken.None);
             await _cdp.NavigateAsync(string.IsNullOrWhiteSpace(_lastSessionUrl) ? "https://chat.deepseek.com" : _lastSessionUrl);
+            if (!_browser.TryAdoptForegroundWindow())
+            {
+                var bounds = await _cdp.GetWindowBoundsAsync(CancellationToken.None);
+                if (bounds is { } b) _browser.TryAdoptByBounds(b.Left, b.Top, b.Width, b.Height);
+            }
 
             if (wasEmbedded)
             {

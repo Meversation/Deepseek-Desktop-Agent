@@ -76,6 +76,21 @@ public sealed class CdpClient : IAsyncDisposable
 
         try
         {
+            var href = await EvaluateAsync("location.href", 5000, ct);
+            if (!href.Contains("chat.deepseek.com", StringComparison.OrdinalIgnoreCase))
+            {
+                await CallAsync("Page.navigate", new JsonObject { ["url"] = "https://chat.deepseek.com" }, 15000, ct);
+                await Task.Delay(2000, ct);
+                Log?.Invoke("调试页面已导航到 chat.deepseek.com");
+            }
+        }
+        catch (Exception ex)
+        {
+            Log?.Invoke("调试页面地址检查失败: " + ex.Message);
+        }
+
+        try
+        {
             await CallAsync("Page.enable", null, 5000, ct);
             await CallAsync("Page.bringToFront", null, 5000, ct);
             await CallAsync("Emulation.setFocusEmulationEnabled", new JsonObject { ["enabled"] = true }, 5000, ct);
@@ -96,7 +111,6 @@ public sealed class CdpClient : IAsyncDisposable
             {
                 var json = await Http.GetStringAsync($"http://127.0.0.1:{port}/json", ct);
                 using var doc = JsonDocument.Parse(json);
-                JsonElement? fallback = null;
                 foreach (var el in doc.RootElement.EnumerateArray())
                 {
                     if (!el.TryGetProperty("type", out var type) || type.GetString() != "page") continue;
@@ -104,12 +118,6 @@ public sealed class CdpClient : IAsyncDisposable
                     var url = el.TryGetProperty("url", out var urlEl) ? urlEl.GetString() ?? "" : "";
                     if (url.Contains("chat.deepseek.com", StringComparison.OrdinalIgnoreCase))
                         return wsEl.GetString()!;
-                    fallback ??= el.Clone();
-                }
-                if (fallback != null)
-                {
-                    var ws = fallback.Value.GetProperty("webSocketDebuggerUrl").GetString();
-                    if (!string.IsNullOrWhiteSpace(ws)) return ws;
                 }
             }
             catch (Exception ex) { last = ex; }
@@ -272,6 +280,23 @@ public sealed class CdpClient : IAsyncDisposable
     {
         try { return await EvaluateAsync("location.href", 5000, ct); }
         catch { return ""; }
+    }
+
+    public async Task<(double Left, double Top, double Width, double Height)?> GetWindowBoundsAsync(CancellationToken ct = default)
+    {
+        try
+        {
+            var result = await CallAsync("Browser.getWindowForTarget", null, 5000, ct);
+            if (result == null) return null;
+            if (!result.Value.TryGetProperty("bounds", out var bounds)) return null;
+            double Read(string name) =>
+                bounds.TryGetProperty(name, out var value) && value.TryGetDouble(out var d) ? d : 0;
+            var width = Read("width");
+            var height = Read("height");
+            if (width <= 0 || height <= 0) return null;
+            return (Read("left"), Read("top"), width, height);
+        }
+        catch { return null; }
     }
 
     public async Task WaitReadyAsync(int timeoutMs = 30000, CancellationToken ct = default)

@@ -18,6 +18,7 @@
   <ItemGroup>
     <EmbeddedResource Include="Assets\system_prompt.txt" LogicalName="DeepseekDesktopAgent.system_prompt.txt" />
     <EmbeddedResource Include="Assets\skills.zip" LogicalName="DeepseekDesktopAgent.skills.zip" />
+    <EmbeddedResource Include="Assets\icon.ico" LogicalName="DeepseekDesktopAgent.icon.ico" />
     <None Include="Assets\icon.ico" />
   </ItemGroup>
 
