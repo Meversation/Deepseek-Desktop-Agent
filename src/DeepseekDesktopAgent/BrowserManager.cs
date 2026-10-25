@@ -22,106 +22,138 @@ public sealed class BrowserManager : IDisposable
     public bool IsAlive => _hwnd != IntPtr.Zero && Native.IsWindow(_hwnd);
     public event Action<string>? Log;
 
+    private readonly SemaphoreSlim _startGate = new(1, 1);
+
+    public bool Starting { get; private set; }
+
     public async Task StartAsync(int port, CancellationToken ct = default)
     {
-        Port = port;
-        ShuttingDown = false;
-        _embedded = false;
-        _host = IntPtr.Zero;
-        _hwnd = IntPtr.Zero;
-        _savedStyle = 0;
-        _topCrop = 0;
-
-        if (await IsPortReadyAsync(port, ct))
+        await _startGate.WaitAsync(ct);
+        Starting = true;
+        try
         {
-            var existing = FindDeepSeekWindow();
-            if (existing != IntPtr.Zero)
-            {
-                _hwnd = existing;
-                CaptureFloatingRect();
-                Log?.Invoke("已复用 9222 端口上的浏览器窗口");
-                return;
-            }
+            Port = port;
+            ShuttingDown = false;
+            _embedded = false;
+            _host = IntPtr.Zero;
+            _hwnd = IntPtr.Zero;
+            _savedStyle = 0;
+            _topCrop = 0;
 
-            Log?.Invoke("9222 端口已被占用，尝试在现有浏览器中打开 DeepSeek...");
-            if (await OpenDeepSeekPageAsync(port, ct))
+            if (await IsPortReadyAsync(port, ct))
             {
-                var reuseDeadline = DateTime.UtcNow.AddSeconds(20);
-                while (DateTime.UtcNow < reuseDeadline)
+                var existing = FindDeepSeekWindow();
+                if (existing != IntPtr.Zero)
                 {
-                    ct.ThrowIfCancellationRequested();
-                    _hwnd = FindDeepSeekWindow();
-                    if (_hwnd != IntPtr.Zero) break;
-                    await Task.Delay(500, ct);
-                }
-                if (_hwnd != IntPtr.Zero)
-                {
-                    CaptureFloatingRect();
+                    _hwnd = existing;
+                    HideUntilEmbedded();
                     Log?.Invoke("已复用 9222 端口上的浏览器窗口");
                     return;
                 }
+
+                Log?.Invoke("9222 端口已被占用，尝试在现有浏览器中打开 DeepSeek...");
+                if (await OpenDeepSeekPageAsync(port, ct))
+                {
+                    var reuseDeadline = DateTime.UtcNow.AddSeconds(20);
+                    while (DateTime.UtcNow < reuseDeadline)
+                    {
+                        ct.ThrowIfCancellationRequested();
+                        _hwnd = FindDeepSeekWindow();
+                        if (_hwnd != IntPtr.Zero) break;
+                        await Task.Delay(500, ct);
+                    }
+                    if (_hwnd != IntPtr.Zero)
+                    {
+                        HideUntilEmbedded();
+                        Log?.Invoke("已复用 9222 端口上的浏览器窗口");
+                        return;
+                    }
+                }
+
+                throw new InvalidOperationException("调试端口 9222 已被其他程序占用，且无法在其中打开 DeepSeek 窗口。请关闭占用该端口的浏览器后重试。");
             }
 
-            throw new InvalidOperationException("调试端口 9222 已被其他程序占用，且无法在其中打开 DeepSeek 窗口。请关闭占用该端口的浏览器后重试。");
+            var exe = FindBrowserExe();
+            if (exe == null)
+                throw new InvalidOperationException("未找到 Chrome 或 Edge，请先安装浏览器。");
+
+            Directory.CreateDirectory(AppPaths.BrowserProfileDir);
+            var args = string.Join(' ', new[]
+            {
+                $"--remote-debugging-port={port}",
+                "--remote-allow-origins=*",
+                $"--user-data-dir=\"{AppPaths.BrowserProfileDir}\"",
+                "--no-first-run",
+                "--no-default-browser-check",
+                "--disable-popup-blocking",
+                "--disable-background-timer-throttling",
+                "--disable-backgrounding-occluded-windows",
+                "--disable-renderer-backgrounding",
+                "--disable-features=CalculateNativeWinOcclusion",
+                "--disable-infobars",
+                "--disable-blink-features=AutomationControlled",
+                "--test-type",
+                "--lang=zh-CN",
+                "--window-size=1200,900",
+                "--window-position=-32000,-32000",
+                "--app=https://chat.deepseek.com"
+            });
+
+            Log?.Invoke("正在启动浏览器: " + Path.GetFileName(exe));
+            var psi = new ProcessStartInfo(exe)
+            {
+                UseShellExecute = false,
+                Arguments = args
+            };
+            _launcher = Process.Start(psi) ?? throw new InvalidOperationException("无法启动浏览器进程。");
+
+            if (!await WaitPortAsync(port, 30000, ct))
+                throw new TimeoutException("浏览器调试端口 9222 未在 30 秒内就绪。");
+
+            var deadline = DateTime.UtcNow.AddSeconds(40);
+            while (DateTime.UtcNow < deadline)
+            {
+                ct.ThrowIfCancellationRequested();
+                _hwnd = FindDeepSeekWindow();
+                if (_hwnd != IntPtr.Zero) break;
+                await Task.Delay(500, ct);
+            }
+
+            if (_hwnd == IntPtr.Zero)
+                throw new TimeoutException("未能找到 DeepSeek 浏览器窗口。");
+
+            HideUntilEmbedded();
+            Log?.Invoke("浏览器窗口已就绪");
         }
-
-        var exe = FindBrowserExe();
-        if (exe == null)
-            throw new InvalidOperationException("未找到 Chrome 或 Edge，请先安装浏览器。");
-
-        Directory.CreateDirectory(AppPaths.BrowserProfileDir);
-        var args = string.Join(' ', new[]
+        finally
         {
-            $"--remote-debugging-port={port}",
-            "--remote-allow-origins=*",
-            $"--user-data-dir=\"{AppPaths.BrowserProfileDir}\"",
-            "--no-first-run",
-            "--no-default-browser-check",
-            "--disable-popup-blocking",
-            "--disable-background-timer-throttling",
-            "--disable-backgrounding-occluded-windows",
-            "--disable-renderer-backgrounding",
-            "--disable-features=CalculateNativeWinOcclusion",
-            "--disable-infobars",
-            "--disable-blink-features=AutomationControlled",
-            "--test-type",
-            "--lang=zh-CN",
-            "--window-size=1200,900",
-            "--window-position=120,60",
-            "--app=https://chat.deepseek.com"
-        });
-
-        Log?.Invoke("正在启动浏览器: " + Path.GetFileName(exe));
-        var psi = new ProcessStartInfo(exe)
-        {
-            UseShellExecute = false,
-            Arguments = args
-        };
-        _launcher = Process.Start(psi) ?? throw new InvalidOperationException("无法启动浏览器进程。");
-
-        if (!await WaitPortAsync(port, 30000, ct))
-            throw new TimeoutException("浏览器调试端口 9222 未在 30 秒内就绪。");
-
-        var deadline = DateTime.UtcNow.AddSeconds(40);
-        while (DateTime.UtcNow < deadline)
-        {
-            ct.ThrowIfCancellationRequested();
-            _hwnd = FindDeepSeekWindow();
-            if (_hwnd != IntPtr.Zero) break;
-            await Task.Delay(500, ct);
+            Starting = false;
+            _startGate.Release();
         }
-
-        if (_hwnd == IntPtr.Zero)
-            throw new TimeoutException("未能找到 DeepSeek 浏览器窗口。");
-
-        CaptureFloatingRect();
-        Log?.Invoke("浏览器窗口已就绪");
     }
 
     private void CaptureFloatingRect()
     {
-        if (_hwnd != IntPtr.Zero && Native.GetWindowRect(_hwnd, out var rect) && !rect.IsEmpty)
+        if (_hwnd != IntPtr.Zero && Native.GetWindowRect(_hwnd, out var rect) && !rect.IsEmpty &&
+            rect.Left > -10000 && rect.Top > -10000)
+        {
             _floating = rect;
+            return;
+        }
+
+        if (_floating.IsEmpty)
+            _floating = new Native.RECT { Left = 160, Top = 100, Right = 1360, Bottom = 1000 };
+    }
+
+    /// <summary>浏览器先离屏启动，找到窗口后立即隐藏，直到内嵌完成再显示，避免启动闪窗。</summary>
+    private void HideUntilEmbedded()
+    {
+        if (_hwnd == IntPtr.Zero) return;
+        CaptureFloatingRect();
+        // 隐藏会清掉 WS_VISIBLE，先记录原始样式，还原窗口时才能恢复成普通独立窗口。
+        if (_savedStyle == 0)
+            _savedStyle = Native.GetWindowLongPtr(_hwnd, Native.GWL_STYLE).ToInt64();
+        Native.ShowWindow(_hwnd, Native.SW_HIDE);
     }
 
     public void Embed(IntPtr host, int topCrop)
@@ -137,13 +169,22 @@ public sealed class BrowserManager : IDisposable
         }
 
         CaptureFloatingRect();
-        _savedStyle = Native.GetWindowLongPtr(_hwnd, Native.GWL_STYLE).ToInt64();
+        if (_savedStyle == 0)
+            _savedStyle = Native.GetWindowLongPtr(_hwnd, Native.GWL_STYLE).ToInt64();
         _host = host;
         _topCrop = Math.Max(0, topCrop);
-        Native.SetWindowLongPtr(_hwnd, Native.GWL_STYLE, new IntPtr(_savedStyle & ~Native.WS_THICKFRAME));
+        var childStyle = (_savedStyle &
+                          ~(Native.WS_THICKFRAME | Native.WS_CAPTION | Native.WS_SYSMENU |
+                            Native.WS_MINIMIZEBOX | Native.WS_MAXIMIZEBOX | Native.WS_POPUP)) | Native.WS_CHILD;
+        Log?.Invoke($"内嵌目标窗口 0x{_hwnd.ToInt64():X}，原样式 0x{_savedStyle:X8}");
+        Native.SetWindowLongPtr(_hwnd, Native.GWL_STYLE, new IntPtr(childStyle));
+        var styleErr = Native.GetLastError();
         Native.SetParent(_hwnd, host);
+        var parentErr = Native.GetLastError();
         if (Native.GetParent(_hwnd) != host)
         {
+            Log?.Invoke($"SetParent 失败，窗口样式错误码 {styleErr}，父窗口错误码 {parentErr}，当前父窗口 0x{Native.GetParent(_hwnd).ToInt64():X}");
+            Native.SetParent(_hwnd, IntPtr.Zero);
             Native.SetWindowLongPtr(_hwnd, Native.GWL_STYLE, new IntPtr(_savedStyle));
             throw new InvalidOperationException("内嵌 DeepSeek 窗口失败，窗口句柄可能已失效。");
         }
@@ -168,8 +209,9 @@ public sealed class BrowserManager : IDisposable
     {
         if (!_embedded || !IsAlive) return;
 
-        var width = Math.Max(900, _floating.Width);
-        var height = Math.Max(650, _floating.Height);
+        var area = System.Windows.Forms.Screen.FromHandle(_hwnd).WorkingArea;
+        var width = Math.Min(Math.Max(900, _floating.Width), area.Width);
+        var height = Math.Min(Math.Max(650, _floating.Height), area.Height);
         var left = _floating.Left;
         var top = _floating.Top;
         if (_floating.IsEmpty)
@@ -177,6 +219,11 @@ public sealed class BrowserManager : IDisposable
             left = 160;
             top = 100;
         }
+
+        var maxLeft = Math.Max(area.Left, area.Right - width);
+        var maxTop = Math.Max(area.Top, area.Bottom - height);
+        left = Math.Clamp(left, area.Left, maxLeft);
+        top = Math.Clamp(top, area.Top, maxTop);
 
         Native.SetParent(_hwnd, IntPtr.Zero);
         _embedded = false;
@@ -229,7 +276,11 @@ public sealed class BrowserManager : IDisposable
         double bestScore = double.MaxValue;
         foreach (var hWnd in Native.EnumTopLevelWindows())
         {
-            if (!IsBrowserWindow(hWnd)) continue;
+            Native.GetWindowThreadProcessId(hWnd, out var pid);
+            if ((int)pid == Environment.ProcessId) continue;
+            if (!IsBrowserProcess((int)pid)) continue;
+            if (!IsBrowserClass(Native.GetWindowClass(hWnd))) continue;
+            if (Native.GetParent(hWnd) != IntPtr.Zero) continue;
             if (!Native.GetWindowRect(hWnd, out var rect)) continue;
 
             var scale = Native.GetScaleForWindow(hWnd);
@@ -255,11 +306,17 @@ public sealed class BrowserManager : IDisposable
         return true;
     }
 
+    private static bool IsBrowserClass(string cls) =>
+        cls.Equals("Chrome_WidgetWin_1", StringComparison.OrdinalIgnoreCase) ||
+        cls.Equals("Chrome_WidgetWin_0", StringComparison.OrdinalIgnoreCase);
+
     private static bool IsBrowserWindow(IntPtr hWnd)
     {
         if (hWnd == IntPtr.Zero || !Native.IsWindowVisible(hWnd)) return false;
-        if (!string.Equals(Native.GetWindowClass(hWnd), "Chrome_WidgetWin_1", StringComparison.OrdinalIgnoreCase)) return false;
+        if (!IsBrowserClass(Native.GetWindowClass(hWnd))) return false;
         if (Native.GetParent(hWnd) != IntPtr.Zero) return false;
+        Native.GetWindowThreadProcessId(hWnd, out var pid);
+        if (!IsBrowserProcess((int)pid)) return false;
         var title = Native.GetWindowTitle(hWnd);
         if (string.IsNullOrWhiteSpace(title)) return false;
         if (title.Contains("DevTools", StringComparison.OrdinalIgnoreCase)) return false;
@@ -268,64 +325,75 @@ public sealed class BrowserManager : IDisposable
         return title.Contains("DeepSeek", StringComparison.OrdinalIgnoreCase);
     }
 
+    /// <summary>
+    /// 只认真正的 Chrome/Edge 进程，排除 Trae/QQ 等同样使用 Chrome_WidgetWin_1 的 Electron 程序。
+    /// </summary>
+    private static bool IsBrowserProcess(int pid)
+    {
+        if (pid <= 0 || pid == Environment.ProcessId) return false;
+        try
+        {
+            using var p = Process.GetProcessById(pid);
+            var name = p.ProcessName.ToLowerInvariant();
+            if (name != "chrome" && name != "msedge") return false;
+            var file = Path.GetFileName(p.MainModule?.FileName ?? "").ToLowerInvariant();
+            return file == "chrome.exe" || file == "msedge.exe";
+        }
+        catch { return false; }
+    }
+
+    /// <summary>
+    /// 查找 DeepSeek 浏览器主窗口。优先本程序启动的浏览器进程、可见窗口、标题含 DeepSeek、面积较大的窗口。
+    /// </summary>
     public IntPtr FindDeepSeekWindow()
     {
-        IntPtr best = IntPtr.Zero;
-        long bestArea = 0;
-
-        foreach (var hWnd in Native.EnumTopLevelWindows())
+        var launcherId = 0;
+        try
         {
-            if (!Native.IsWindowVisible(hWnd)) continue;
-            var cls = Native.GetWindowClass(hWnd);
-            if (!string.Equals(cls, "Chrome_WidgetWin_1", StringComparison.OrdinalIgnoreCase)) continue;
-
-            var title = Native.GetWindowTitle(hWnd);
-            if (string.IsNullOrWhiteSpace(title)) continue;
-            if (title.Contains("DevTools", StringComparison.OrdinalIgnoreCase)) continue;
-
-            var isDeepSeek = title.Contains("DeepSeek", StringComparison.OrdinalIgnoreCase);
-            Native.GetWindowRect(hWnd, out var rect);
-            var area = (long)Math.Max(0, rect.Width) * Math.Max(0, rect.Height);
-
-            if (isDeepSeek && area > bestArea)
-            {
-                best = hWnd;
-                bestArea = area;
-            }
+            if (_launcher is { HasExited: false }) launcherId = _launcher.Id;
         }
+        catch { }
 
+        var best = SearchWindows(visibleOnly: true, launcherId);
         if (best != IntPtr.Zero) return best;
+        return SearchWindows(visibleOnly: false, launcherId);
+    }
+
+    private IntPtr SearchWindows(bool visibleOnly, int launcherId)
+    {
+        IntPtr best = IntPtr.Zero;
+        long bestScore = long.MinValue;
 
         foreach (var hWnd in Native.EnumTopLevelWindows())
         {
-            if (!Native.IsWindowVisible(hWnd)) continue;
-            if (!string.Equals(Native.GetWindowClass(hWnd), "Chrome_WidgetWin_1", StringComparison.OrdinalIgnoreCase)) continue;
-            var title = Native.GetWindowTitle(hWnd);
-            if (string.IsNullOrWhiteSpace(title)) continue;
-            if (title.Contains("DevTools", StringComparison.OrdinalIgnoreCase)) continue;
-            if (title.Contains("新建标签页", StringComparison.OrdinalIgnoreCase) ||
-                title.Contains("New Tab", StringComparison.OrdinalIgnoreCase)) continue;
+            if (visibleOnly && !Native.IsWindowVisible(hWnd)) continue;
+            if (!IsBrowserClass(Native.GetWindowClass(hWnd))) continue;
+            if (Native.GetParent(hWnd) != IntPtr.Zero) continue;
 
             Native.GetWindowThreadProcessId(hWnd, out var pid);
-            var name = GetProcessName((int)pid);
-            if (name != "chrome" && name != "msedge") continue;
+            if (!IsBrowserProcess((int)pid)) continue;
+            if (!Native.GetWindowRect(hWnd, out var rect)) continue;
 
-            Native.GetWindowRect(hWnd, out var rect);
             var area = (long)Math.Max(0, rect.Width) * Math.Max(0, rect.Height);
-            if (area > bestArea)
+            if (area <= 0) continue;
+
+            var title = Native.GetWindowTitle(hWnd);
+            if (title.Contains("DevTools", StringComparison.OrdinalIgnoreCase)) continue;
+
+            long score = 0;
+            if (launcherId != 0 && (int)pid == launcherId) score += 1_000_000;
+            if (title.Contains("DeepSeek", StringComparison.OrdinalIgnoreCase)) score += 100_000;
+            if (Native.IsWindowVisible(hWnd) && !string.IsNullOrWhiteSpace(title)) score += 10_000;
+            score += Math.Min(area / 2000, 9_000);
+
+            if (score > bestScore)
             {
+                bestScore = score;
                 best = hWnd;
-                bestArea = area;
             }
         }
 
         return best;
-    }
-
-    private static string GetProcessName(int pid)
-    {
-        try { return Process.GetProcessById(pid).ProcessName.ToLowerInvariant(); }
-        catch { return ""; }
     }
 
     private static string? FindBrowserExe()
@@ -401,5 +469,6 @@ public sealed class BrowserManager : IDisposable
     public void Dispose()
     {
         _launcher?.Dispose();
+        _startGate.Dispose();
     }
 }

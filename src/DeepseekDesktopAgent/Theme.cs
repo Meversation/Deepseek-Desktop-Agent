@@ -1,4 +1,5 @@
 using System.Drawing;
+using System.Drawing.Drawing2D;
 
 namespace DeepseekDesktopAgent;
 
@@ -62,14 +63,6 @@ public static class ThemeManager
                 form.BackColor = p.Background;
                 form.ForeColor = p.Text;
                 break;
-            case TabPage page:
-                page.BackColor = p.Surface;
-                page.ForeColor = p.Text;
-                break;
-            case TabControl tabs:
-                tabs.BackColor = p.Surface;
-                tabs.ForeColor = p.Text;
-                break;
             case SplitContainer split:
                 split.BackColor = p.Border;
                 split.Panel1.BackColor = p.Background;
@@ -78,17 +71,14 @@ public static class ThemeManager
             case TextBoxBase text:
                 text.BackColor = p.Input;
                 text.ForeColor = p.Text;
-                text.BorderStyle = BorderStyle.FixedSingle;
                 break;
             case ListBox list:
                 list.BackColor = p.Input;
                 list.ForeColor = p.Text;
-                list.BorderStyle = BorderStyle.FixedSingle;
                 break;
             case ListView view:
                 view.BackColor = p.Input;
                 view.ForeColor = p.Text;
-                view.BorderStyle = BorderStyle.FixedSingle;
                 break;
             case ComboBox combo:
                 combo.BackColor = p.Input;
@@ -98,7 +88,6 @@ public static class ThemeManager
             case NumericUpDown number:
                 number.BackColor = p.Input;
                 number.ForeColor = p.Text;
-                number.BorderStyle = BorderStyle.FixedSingle;
                 break;
             case Button button:
                 if (button.FlatStyle != FlatStyle.Flat) button.FlatStyle = FlatStyle.Flat;
@@ -117,7 +106,9 @@ public static class ThemeManager
                 break;
             case Label label:
                 label.BackColor = Color.Transparent;
-                label.ForeColor = p.Text;
+                label.ForeColor = label.Tag is string lt && lt.Contains("subtle", StringComparison.Ordinal)
+                    ? p.SubtleText
+                    : p.Text;
                 break;
             case GroupBox group:
                 group.BackColor = p.Surface;
@@ -162,11 +153,110 @@ public class BufferedTableLayoutPanel : TableLayoutPanel
     }
 }
 
-public class BufferedTabControl : TabControl
+/// <summary>自绘分段标签栏：完全由主题配色绘制，避免原生 TabControl 在暗色下露出系统浅色标签带。</summary>
+public class SegmentedTabs : Control
 {
-    public BufferedTabControl()
+    private const int TabWidth = 96;
+    private const int Gap = 6;
+    private readonly List<string> _titles = new();
+    private int _selected;
+    private int _hover = -1;
+
+    public int SelectedIndex => _selected;
+
+    public event EventHandler? SelectedIndexChanged;
+
+    public SegmentedTabs()
     {
-        SetStyle(ControlStyles.OptimizedDoubleBuffer | ControlStyles.AllPaintingInWmPaint, true);
+        SetStyle(
+            ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint |
+            ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
         DoubleBuffered = true;
+        Height = 44;
+        Cursor = Cursors.Hand;
+        Font = new Font("Microsoft YaHei UI", 9.5F);
+    }
+
+    public void AddTab(string title)
+    {
+        _titles.Add(title);
+        Invalidate();
+    }
+
+    public void Select(int index)
+    {
+        if (index < 0 || index >= _titles.Count || index == _selected) return;
+        _selected = index;
+        Invalidate();
+        SelectedIndexChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    private Rectangle PillAt(int index) =>
+        new(6 + index * (TabWidth + Gap), 7, TabWidth, Height - 14);
+
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        var p = ThemeManager.Current;
+        var g = e.Graphics;
+        g.SmoothingMode = SmoothingMode.AntiAlias;
+        g.Clear(Parent?.BackColor ?? p.Background);
+
+        for (var i = 0; i < _titles.Count; i++)
+        {
+            var pill = PillAt(i);
+            if (i == _selected)
+            {
+                using var path = UiPaint.Round(pill, 9);
+                using (var brush = new SolidBrush(p.Surface)) g.FillPath(brush, path);
+                using var pen = new Pen(UiPaint.Blend(p.Border, p.Accent, 0.5));
+                g.DrawPath(pen, path);
+            }
+            else if (i == _hover)
+            {
+                using var path = UiPaint.Round(pill, 9);
+                using var brush = new SolidBrush(UiPaint.Blend(p.Background, p.Surface, 0.6));
+                g.FillPath(brush, path);
+            }
+
+            TextRenderer.DrawText(g, _titles[i], Font, pill,
+                i == _selected ? p.Text : p.SubtleText,
+                TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
+        }
+
+        using var divider = new Pen(p.Border);
+        g.DrawLine(divider, 0, Height - 1, Width, Height - 1);
+    }
+
+    protected override void OnMouseMove(MouseEventArgs e)
+    {
+        var hit = HitTest(e.Location);
+        if (hit != _hover)
+        {
+            _hover = hit;
+            Invalidate();
+        }
+        base.OnMouseMove(e);
+    }
+
+    protected override void OnMouseLeave(EventArgs e)
+    {
+        _hover = -1;
+        Invalidate();
+        base.OnMouseLeave(e);
+    }
+
+    protected override void OnMouseDown(MouseEventArgs e)
+    {
+        var hit = HitTest(e.Location);
+        if (hit >= 0) Select(hit);
+        base.OnMouseDown(e);
+    }
+
+    private int HitTest(Point pt)
+    {
+        for (var i = 0; i < _titles.Count; i++)
+            if (PillAt(i).Contains(pt)) return i;
+        return -1;
     }
 }
+

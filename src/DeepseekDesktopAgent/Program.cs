@@ -12,6 +12,12 @@ internal static class Program
             return;
         }
 
+        if (args.Contains("--diagnose", StringComparer.OrdinalIgnoreCase))
+        {
+            Environment.ExitCode = Diagnostics.Run();
+            return;
+        }
+
         Application.SetHighDpiMode(HighDpiMode.PerMonitorV2);
         Application.EnableVisualStyles();
         Application.SetCompatibleTextRenderingDefault(false);

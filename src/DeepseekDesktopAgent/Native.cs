@@ -8,6 +8,8 @@ internal static class Native
 {
     public const int GWL_STYLE = -16;
 
+    public const long WS_CHILD = 0x40000000L;
+    public const long WS_POPUP = 0x80000000L;
     public const long WS_CAPTION = 0x00C00000L;
     public const long WS_THICKFRAME = 0x00040000L;
     public const long WS_SYSMENU = 0x00080000L;
@@ -22,8 +24,10 @@ internal static class Native
     public const uint SWP_SHOWWINDOW = 0x0040;
 
     public const int SW_SHOW = 5;
+    public const int SW_HIDE = 0;
     public const int SW_RESTORE = 9;
 
+    public const uint GA_PARENT = 1;
     public const uint GA_ROOT = 2;
 
     public const int SM_CXSCREEN = 0;
@@ -84,6 +88,9 @@ internal static class Native
         public uint time;
         public IntPtr dwExtraInfo;
     }
+
+    [DllImport("kernel32.dll")]
+    public static extern uint GetLastError();
 
     [DllImport("user32.dll", SetLastError = true)]
     public static extern IntPtr SetParent(IntPtr hWndChild, IntPtr hWndNewParent);

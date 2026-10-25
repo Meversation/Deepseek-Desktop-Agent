@@ -43,12 +43,87 @@ public sealed class CdpClient : IAsyncDisposable
         """;
 
     private const string LastAssistantJs = KeySelectorJs + """
+        function domToMarkdown(root) {
+          function kids(node, depth) {
+            var s = '';
+            for (var i = 0; i < node.childNodes.length; i++) s += conv(node.childNodes[i], depth);
+            return s;
+          }
+          function conv(node, depth) {
+            if (node.nodeType === 3) return node.nodeValue;
+            if (node.nodeType !== 1) return '';
+            var tag = node.tagName.toLowerCase();
+            var cls = typeof node.className === 'string' ? node.className : '';
+            if (cls.indexOf('md-code-block-banner') >= 0) return '';
+            if (tag === 'br') return '\n';
+            if (tag === 'script' || tag === 'style' || tag === 'button' || tag === 'svg') return '';
+            if (/^h[1-6]$/.test(tag)) {
+              return '\n\n' + new Array(parseInt(tag[1], 10) + 1).join('#') + ' ' + kids(node, depth).trim() + '\n\n';
+            }
+            if (tag === 'strong' || tag === 'b') return '**' + kids(node, depth) + '**';
+            if (tag === 'em' || tag === 'i') return '*' + kids(node, depth) + '*';
+            if (tag === 'del' || tag === 's') return '~~' + kids(node, depth) + '~~';
+            if (tag === 'pre') {
+              var codeEl = node.querySelector('code');
+              var cls = codeEl ? (codeEl.className || '') : '';
+              var m = cls.match(/language-([\w+#-]+)/);
+              var code = (codeEl || node).textContent.replace(/^\n+|\n+$/g, '');
+              return '\n\n```' + (m ? m[1] : '') + '\n' + code + '\n```\n\n';
+            }
+            if (tag === 'code') return '`' + (node.textContent || '') + '`';
+            if (tag === 'ul' || tag === 'ol') {
+              var items = [], idx = 1;
+              for (var c = node.firstElementChild; c; c = c.nextElementSibling) {
+                if (c.tagName.toLowerCase() !== 'li') continue;
+                var inner = kids(c, depth + 1).trim().replace(/\n/g, '\n' + new Array(depth + 2).join('  '));
+                items.push(new Array(depth + 1).join('  ') + (tag === 'ol' ? (idx++) + '. ' : '- ') + inner);
+              }
+              return '\n' + items.join('\n') + '\n';
+            }
+            if (tag === 'blockquote') {
+              return '\n\n' + kids(node, depth).trim().split('\n').map(function (l) { return '> ' + l; }).join('\n') + '\n\n';
+            }
+            if (tag === 'table') {
+              var rows = [];
+              var trs = node.querySelectorAll('tr');
+              for (var r = 0; r < trs.length; r++) {
+                var cells = [], tds = trs[r].children;
+                for (var t = 0; t < tds.length; t++) {
+                  var tg = tds[t].tagName.toLowerCase();
+                  if (tg !== 'td' && tg !== 'th') continue;
+                  cells.push(kids(tds[t], depth).trim().replace(/\|/g, '\\|').replace(/\n+/g, ' '));
+                }
+                if (cells.length) rows.push('| ' + cells.join(' | ') + ' |');
+                if (r === 0) rows.push('|' + cells.map(function () { return ' --- |'; }).join(''));
+              }
+              return '\n\n' + rows.join('\n') + '\n\n';
+            }
+            if (tag === 'a') {
+              var href = node.getAttribute('href') || '';
+              var label = kids(node, depth).trim() || href;
+              return href ? '[' + label + '](' + href + ')' : label;
+            }
+            if (tag === 'hr') return '\n\n---\n\n';
+            if (tag === 'img') {
+              var alt = node.getAttribute('alt') || '图片';
+              var src = node.getAttribute('src') || '';
+              return src ? '![' + alt + '](' + src + ')' : alt;
+            }
+            if (tag === 'p' || tag === 'div' || tag === 'section' || tag === 'article') {
+              var body = kids(node, depth);
+              return '\n\n' + body.trim() + '\n\n';
+            }
+            return kids(node, depth);
+          }
+          var md = conv(root, 0);
+          md = md.replace(/\u00a0/g, ' ').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+          return md;
+        }
         function lastAssistant() {
           var els = pick(Sel.assistant);
           if (!els || els.length === 0) return { count: 0, text: '' };
           var last = els[els.length - 1];
-          var text = (last.textContent || '').trim();
-          return { count: els.length, text: text };
+          return { count: els.length, text: domToMarkdown(last) };
         }
         JSON.stringify(lastAssistant())
         """;
@@ -60,15 +135,24 @@ public sealed class CdpClient : IAsyncDisposable
         _disposing = false;
         _ws = new ClientWebSocket();
 
-        var wsUrl = await FindPageSocketAsync(port, ct);
-        _ws.Options.KeepAliveInterval = TimeSpan.FromSeconds(15);
-        try
+        for (var attempt = 0; attempt < 3; attempt++)
         {
-            await _ws.ConnectAsync(new Uri(wsUrl), ct);
-        }
-        catch (Exception ex)
-        {
-            throw new CdpException("无法连接 DeepSeek 调试页面，请确认浏览器已启动。", ex);
+            var wsUrl = await FindPageSocketAsync(port, ct);
+            try
+            {
+                _ws.Options.KeepAliveInterval = TimeSpan.FromSeconds(15);
+                await _ws.ConnectAsync(new Uri(wsUrl), ct);
+                break;
+            }
+            catch (Exception ex)
+            {
+                try { _ws.Dispose(); } catch { }
+                _ws = new ClientWebSocket();
+                if (attempt == 2)
+                    throw new CdpException("无法连接 DeepSeek 调试页面，请确认浏览器已启动。", ex);
+                Log?.Invoke("CDP 连接失败，正在重试: " + ex.Message);
+                await Task.Delay(700, ct);
+            }
         }
 
         _cts = new CancellationTokenSource();
@@ -463,6 +547,43 @@ public sealed class CdpClient : IAsyncDisposable
         catch
         {
             return new ReplySnapshot();
+        }
+    }
+
+    /// <summary>
+    /// 等待页面里正在生成的回复停止变化，用于急停后重新发送消息，避免网页仍在生成时发送失败。
+    /// </summary>
+    public async Task WaitForReplyIdleAsync(int timeoutMs, CancellationToken ct)
+    {
+        if (!IsConnected) return;
+        var deadline = DateTime.UtcNow.AddMilliseconds(timeoutMs);
+        var last = "";
+        var stable = 0;
+        while (DateTime.UtcNow < deadline)
+        {
+            ct.ThrowIfCancellationRequested();
+            if (!IsConnected) return;
+
+            string text;
+            try
+            {
+                var raw = await EvaluateAsync(LastAssistantJs, 8000, ct);
+                text = JsonSerializer.Deserialize<ReplySnapshot>(raw, JsonOptions)?.Text ?? "";
+            }
+            catch (CdpException) when (!ct.IsCancellationRequested)
+            {
+                return;
+            }
+
+            if (text == last) stable++;
+            else
+            {
+                last = text;
+                stable = 0;
+            }
+
+            if (stable >= 3) return;
+            await Task.Delay(300, ct);
         }
     }
 
