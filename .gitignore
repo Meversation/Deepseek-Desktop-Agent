@@ -10,3 +10,12 @@
 Thumbs.db
 .DS_Store
 desktop.ini
+
+# 本地文档
+TODO.md
+
+# 临时备份
+*.bak*
+
+# 运行日志
+*.log

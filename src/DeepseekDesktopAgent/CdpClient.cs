@@ -366,6 +366,136 @@ public sealed class CdpClient : IAsyncDisposable
         catch { return ""; }
     }
 
+    private const string ThinkingProbeJs = """
+        (function () {
+          function isSummary(t) { return /(已深度思考|思考中|已思考|深度思考)/.test(t) && t.length < 60; }
+          var host = null;
+          var nodes = document.querySelectorAll('[class*="thinking"],[class*="reason"],[class*="think-block"],[class*="thought"]');
+          for (var i = 0; i < nodes.length; i++) {
+            if ((nodes[i].innerText || '').trim().length) host = nodes[i];
+          }
+          if (!host) {
+            var all = document.querySelectorAll('div,span,p');
+            for (var j = 0; j < all.length; j++) {
+              var text = (all[j].innerText || '').trim();
+              if (!isSummary(text)) continue;
+              var up = all[j];
+              for (var k = 0; k < 3 && up.parentElement; k++) up = up.parentElement;
+              host = up;
+            }
+          }
+          if (!host) return JSON.stringify({ ok: false, reason: 'thinking-not-found' });
+          var lines = (host.innerText || '').split('\n');
+          var summary = '', body = [];
+          for (var m = 0; m < lines.length; m++) {
+            var line = lines[m].trim();
+            if (!line) continue;
+            if (!summary && isSummary(line)) { summary = line; continue; }
+            body.push(line);
+          }
+          var dm = summary.match(/用时\s*(\d+)\s*(秒|分|分钟)/);
+          var seconds = dm ? (dm[2] === '秒' ? parseInt(dm[1], 10) : parseInt(dm[1], 10) * 60) : null;
+          return JSON.stringify({
+            ok: true, summary: summary, body: body.join('\n'),
+            durationSeconds: seconds, complete: summary.indexOf('思考中') < 0
+          });
+        })()
+        """;
+
+    private const string DeepThinkLookupJs = """
+        var nodes = document.querySelectorAll('[role="button"],[role="switch"],button,div');
+        var keys = ['深度思考', 'DeepThink', 'deep think'];
+        var hit = null;
+        for (var i = 0; i < nodes.length; i++) {
+          var text = (nodes[i].innerText || '').trim();
+          if (text.length > 12) continue;
+          for (var j = 0; j < keys.length; j++) {
+            if (text.indexOf(keys[j]) >= 0) hit = nodes[i];
+          }
+        }
+        function isOn(el) {
+          var cls = typeof el.className === 'string' ? el.className : '';
+          return el.getAttribute('aria-pressed') === 'true' ||
+                 el.getAttribute('aria-checked') === 'true' ||
+                 /active|checked|selected|open/i.test(cls);
+        }
+        """;
+
+    /// <summary>② 读取最后一条思考块；页面结构不匹配时返回空对象。</summary>
+    public async Task<ThinkingBlock> ReadThinkingAsync(CancellationToken ct = default)
+    {
+        if (!IsConnected) return new ThinkingBlock();
+        try
+        {
+            var raw = await EvaluateAsync(ThinkingProbeJs, 8000, ct);
+            using var doc = JsonDocument.Parse(raw);
+            var root = doc.RootElement;
+            if (!root.TryGetProperty("ok", out var ok) || ok.ValueKind != JsonValueKind.True)
+                return new ThinkingBlock();
+
+            var summary = root.TryGetProperty("summary", out var s) ? s.GetString() ?? "" : "";
+            var body = root.TryGetProperty("body", out var b) ? b.GetString() ?? "" : "";
+            int? duration = null;
+            if (root.TryGetProperty("durationSeconds", out var d) && d.ValueKind == JsonValueKind.Number)
+                duration = d.GetInt32();
+            var complete = !root.TryGetProperty("complete", out var c) || c.ValueKind != JsonValueKind.False;
+            return ThinkingBlockParser.ParseText(body, summary, duration, complete);
+        }
+        catch
+        {
+            return new ThinkingBlock();
+        }
+    }
+
+    /// <summary>④ 读取深度思考开关状态；找不到按钮时返回 null。</summary>
+    public async Task<bool?> GetDeepThinkStateAsync(CancellationToken ct = default)
+    {
+        if (!IsConnected) return null;
+        try
+        {
+            var raw = await EvaluateAsync("(function(){" + DeepThinkLookupJs + """
+                if (!hit) return JSON.stringify({ ok: false, reason: 'deep-think-not-found' });
+                return JSON.stringify({ ok: true, on: isOn(hit) });
+                })()
+                """, 6000, ct);
+            using var doc = JsonDocument.Parse(raw);
+            var root = doc.RootElement;
+            if (!root.TryGetProperty("ok", out var ok) || ok.ValueKind != JsonValueKind.True) return null;
+            return root.TryGetProperty("on", out var on) && on.ValueKind == JsonValueKind.True;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    /// <summary>④ 切换深度思考开关，返回切换后是否处于开启状态。</summary>
+    public async Task<bool> SetDeepThinkAsync(bool enabled, CancellationToken ct = default)
+    {
+        if (!IsConnected) return false;
+        try
+        {
+            var expression = "(function(){" + DeepThinkLookupJs +
+                "var want = " + (enabled ? "true" : "false") + ";\n" +
+                """
+                if (!hit) return JSON.stringify({ ok: false, reason: 'deep-think-not-found' });
+                if (isOn(hit) === want) return JSON.stringify({ ok: true, on: want });
+                hit.click();
+                return JSON.stringify({ ok: true, on: isOn(hit) });
+                })()
+                """;
+            var raw = await EvaluateAsync(expression, 6000, ct);
+            using var doc = JsonDocument.Parse(raw);
+            var root = doc.RootElement;
+            return root.TryGetProperty("ok", out var ok) && ok.ValueKind == JsonValueKind.True &&
+                   root.TryGetProperty("on", out var on) && on.ValueKind == JsonValueKind.True;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     public async Task<(double Left, double Top, double Width, double Height)?> GetWindowBoundsAsync(CancellationToken ct = default)
     {
         try
@@ -700,6 +830,27 @@ public sealed class CdpClient : IAsyncDisposable
         try { _ws.Dispose(); } catch { }
     }
 
+
+    /// <summary>检测当前页面是否弹出验证码（Cloudflare 挑战、滑块、人机验证等）。</summary>
+    public async Task<bool> CheckForCaptchaAsync(CancellationToken ct = default)
+    {
+        var js = "(function() {" +
+                 "var txt = document.body.innerText || '';" +
+                 "if (txt.includes('人机验证') || txt.includes('滑动验证') || txt.includes('安全验证') || txt.includes('请完成验证')) return true;" +
+                 "if (document.querySelector('iframe[src*=\"challenges.cloudflare.com\"]') || document.querySelector('iframe[src*=\"captcha\"]')) return true;" +
+                 "if (document.querySelector('[class*=\"captcha\"]') || document.querySelector('[id*=\"captcha\"]')) return true;" +
+                 "return false;" +
+                 "})();";
+        try
+        {
+            var result = await EvaluateAsync(js, 3000, ct);
+            return result != null && result.Trim().ToLower() == "true";
+        }
+        catch
+        {
+            return false;
+        }
+    }
     public async ValueTask DisposeAsync()
     {
         await DisposeSocketAsync(clearPending: true);

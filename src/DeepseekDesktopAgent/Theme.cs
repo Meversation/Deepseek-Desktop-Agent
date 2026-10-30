@@ -97,10 +97,13 @@ public static class ThemeManager
                 button.UseVisualStyleBackColor = false;
                 break;
             case CheckBox check:
-                check.BackColor = p.Surface;
+                check.BackColor = p.Background;
                 check.ForeColor = p.Text;
                 break;
             case RadioButton radio:
+                // 系统视觉样式在浅色 Windows 主题下会忽略 ForeColor 画成黑字，暗色下几乎不可见。
+                radio.FlatStyle = FlatStyle.Flat;
+                radio.UseVisualStyleBackColor = false;
                 radio.BackColor = p.Surface;
                 radio.ForeColor = p.Text;
                 break;

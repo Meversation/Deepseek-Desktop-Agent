@@ -16,6 +16,7 @@ public sealed class AppConfig
     public bool EnterToSend { get; set; } = true;
     public string LastSessionUrl { get; set; } = "";
     public int BrowserPort { get; set; } = 9222;
+    public bool TermsAccepted { get; set; }
 }
 
 public static class AppPaths
@@ -28,11 +29,70 @@ public static class AppPaths
     public static string BrowserProfileDir =>
         Path.Combine(Path.GetTempPath(), "deepseek_debug_profile");
 
+    /// <summary>会话临时目录前缀：%TEMP% 下以该前缀开头的目录都视为本程序产生的临时目录。</summary>
+    public const string SessionTempPrefix = "Deepseek-Desktop-Agent";
+
+    /// <summary>
+    /// 当前会话临时目录：%TEMP%\Deepseek-Desktop-Agent。
+    /// 固定路径，跨启动复用；目录不存在时自动创建。
+    /// </summary>
     public static string CreateSessionTempDir()
     {
-        var dir = Path.Combine(Path.GetTempPath(), "Deepseek-Desktop-Agent_" + Environment.ProcessId + "_" + Random.Shared.Next(1000, 9999));
+        var dir = Path.Combine(Path.GetTempPath(), SessionTempPrefix);
         Directory.CreateDirectory(dir);
         return dir;
+    }
+
+    /// <summary>
+    /// 清理 %TEMP% 下所有 Deepseek-Desktop-Agent* 目录。
+    /// excludeDir 非空时跳过它（用于保留当前会话正在使用的目录）。
+    /// 返回（成功删除目录数, 失败目录数, 释放字节数）。
+    /// </summary>
+    public static (int removed, int failed, long bytes) CleanSessionTempDirs(string? excludeDir)
+    {
+        var removed = 0;
+        var failed = 0;
+        long bytes = 0;
+        string? excludeFull = null;
+        if (!string.IsNullOrEmpty(excludeDir))
+        {
+            try { excludeFull = Path.GetFullPath(excludeDir!).TrimEnd('\\'); } catch { }
+        }
+        try
+        {
+            var temp = Path.GetTempPath();
+            foreach (var d in Directory.EnumerateDirectories(temp, SessionTempPrefix + "*"))
+            {
+                if (excludeFull != null)
+                {
+                    try
+                    {
+                        if (string.Equals(Path.GetFullPath(d).TrimEnd('\\'), excludeFull, StringComparison.OrdinalIgnoreCase))
+                            continue;
+                    }
+                    catch { }
+                }
+                try
+                {
+                    long sz = 0;
+                    try
+                    {
+                        var info = new DirectoryInfo(d);
+                        foreach (var f in info.EnumerateFiles("*", SearchOption.AllDirectories))
+                        {
+                            try { sz += f.Length; } catch { }
+                        }
+                    }
+                    catch { }
+                    Directory.Delete(d, recursive: true);
+                    removed++;
+                    bytes += sz;
+                }
+                catch { failed++; }
+            }
+        }
+        catch { }
+        return (removed, failed, bytes);
     }
 }
 

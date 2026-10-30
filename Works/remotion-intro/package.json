@@ -1,0 +1,21 @@
+{
+  "name": "deepseek-agent-intro",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "remotion studio --port=3001",
+    "build": "remotion render DeepseekIntro out/deepseek-agent-intro.mp4"
+  },
+  "dependencies": {
+    "@remotion/cli": "^4.0.538",
+    "@remotion/transitions": "^4.0.538",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "remotion": "^4.0.538"
+  },
+  "devDependencies": {
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "typescript": "^7.0.2"
+  }
+}

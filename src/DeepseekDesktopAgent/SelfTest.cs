@@ -68,6 +68,31 @@ public static class SelfTest
             Check("PowerShell 后台执行与中文输出", result.Output.Contains("中文OK"), result.Output.Replace("\r", "").Replace("\n", " / "));
             Check("PowerShell 输出文件存在", File.Exists(result.OutFile));
 
+            var storeRoot = Path.Combine(Path.GetTempPath(), "deepseek_store_selftest");
+            var storeFailures = SessionStoreSelfTest.Run(storeRoot);
+            Check("会话持久化自检", storeFailures.Length == 0, string.Join(" | ", storeFailures));
+
+            var markdown = "# 标题\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n\n`code` 与 **粗体**";
+            var rtf = MarkdownRenderer.ToRtf(markdown, ThemeManager.Current);
+            Check("Markdown 表格渲染", rtf.Contains(@"\trowd") && rtf.Contains(@"\cell"));
+            Check("Markdown 中文与转义", rtf.StartsWith(@"{\rtf1") && rtf.Contains(@"\u"));
+            Check("Markdown 空输入安全", MarkdownRenderer.ToRtf(string.Empty, ThemeManager.Current).EndsWith("}"));
+            // RTF 流里出现裸的非 ASCII 字符会被 RichEdit 按 ANSI 解析成问号，必须全部走 \u 转义。
+            var listRtf = MarkdownRenderer.ToRtf("- 第一项\n- 第二项 `C:\\x`", ThemeManager.Current);
+            Check("Markdown 无非转义 Unicode", listRtf.All(c => c < 0x80) && listRtf.Contains(@"\u8226?"));
+
+            var treeFailures = SessionTreeSelfTest.Run(storeRoot);
+            Check("会话树自检", treeFailures.Length == 0, string.Join(" | ", treeFailures));
+
+            var thinkingFailures = ThinkingBlockParserSelfTest.Run();
+            Check("思考块解析自检", thinkingFailures.Length == 0, string.Join(" | ", thinkingFailures));
+
+            var runtimeFailures = RuntimeStateStoreSelfTest.Run(storeRoot);
+            Check("运行态存储自检", runtimeFailures.Length == 0, string.Join(" | ", runtimeFailures));
+
+            var skillFailures = SkillInjectorSelfTest.Run(storeRoot);
+            Check("技能注入自检", skillFailures.Length == 0, string.Join(" | ", skillFailures));
+
             try { Directory.Delete(temp, true); } catch { }
         }
         catch (Exception ex)

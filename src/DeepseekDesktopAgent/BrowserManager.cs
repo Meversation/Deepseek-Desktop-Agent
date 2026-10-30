@@ -237,6 +237,32 @@ public sealed class BrowserManager : IDisposable
         Log?.Invoke("DeepSeek 窗口已还原为独立窗口");
     }
 
+    /// <summary>
+    /// 把浏览器显示为独立窗口（不内嵌）。默认隐藏的浏览器只有用户主动要求查看时才显示。
+    /// </summary>
+    public void ShowAsWindow()
+    {
+        if (!IsAlive) return;
+        if (_embedded)
+        {
+            Undock();
+            return;
+        }
+
+        CaptureFloatingRect();
+        var area = System.Windows.Forms.Screen.FromHandle(_hwnd).WorkingArea;
+        var width = Math.Min(Math.Max(900, _floating.Width), area.Width);
+        var height = Math.Min(Math.Max(650, _floating.Height), area.Height);
+        var left = _floating.IsEmpty ? 160 : Math.Clamp(_floating.Left, area.Left, Math.Max(area.Left, area.Right - width));
+        var top = _floating.IsEmpty ? 100 : Math.Clamp(_floating.Top, area.Top, Math.Max(area.Top, area.Bottom - height));
+
+        Native.SetWindowPos(_hwnd, IntPtr.Zero, left, top, width, height,
+            Native.SWP_NOZORDER | Native.SWP_SHOWWINDOW | Native.SWP_FRAMECHANGED);
+        Native.ShowWindow(_hwnd, Native.SW_SHOW);
+        Native.ForceFocus(_hwnd);
+        Log?.Invoke("DeepSeek 网页已作为独立窗口显示");
+    }
+
     public void Focus()
     {
         if (IsAlive) Native.ForceFocus(_hwnd);
