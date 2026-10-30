@@ -58,7 +58,6 @@ public sealed partial class MainForm : Form, IToolHost, IMessageFilter
     private Label _lblOpacity = null!;
     private Label _lblInputPlaceholder = null!;
     private Label _lblDetailWorkDir = null!;
-    private FlowLayoutPanel _detailFlow = null!;
     private TextBox _txtDetailPrompt = null!;
     private ScrollMask _detailPromptMask = null!;
     private LineScrollBar _detailPromptScroll = null!;

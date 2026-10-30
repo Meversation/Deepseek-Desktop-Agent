@@ -733,13 +733,8 @@ public sealed partial class MainForm
     {
         if (string.IsNullOrEmpty(_lastReplyRaw))
         {
+            // 空态保持完全空白：新建会话后只看到对话区本身，不额外显示任何提示文字。
             _txtReply.Clear();
-            // 空态用文本框自身的文字提示，避免原生窗口遮挡 Label。
-            _txtReply.Text = "会话回复会显示在这里\r\n输入任务后按 Ctrl+Enter 发送";
-            _txtReply.SelectAll();
-            _txtReply.SelectionColor = ThemeManager.Current.SubtleText;
-            _txtReply.SelectionStart = 0;
-            _txtReply.SelectionLength = 0;
             return;
         }
 
@@ -814,6 +809,7 @@ public sealed partial class MainForm
         {
             _btnStart.Enabled = !busy;
             _btnChooseDir.Enabled = !busy;
+            _btnChooseDir2.Enabled = !busy;
             _btnStop.Enabled = busy;
             _btnSwitch.Enabled = !busy;
             _rbNew.Enabled = !busy;
@@ -861,8 +857,8 @@ public sealed partial class MainForm
         _lblInputHint.Text = hint;
         var show = hint.Length > 0;
         _lblInputHint.Visible = show;
-        if (_lblInputHint.Parent is TableLayoutPanel table && table.RowStyles.Count > 6)
-            table.RowStyles[6].Height = show ? 22 : 0;
+        if (_lblInputHint.Parent is TableLayoutPanel table && table.RowStyles.Count > 4)
+            table.RowStyles[4].Height = show ? 22 : 0;
         RefreshQueuePreview();
     }
 
@@ -972,8 +968,8 @@ private void ToggleQueuePreview()
             _queuePreviewExpanded = false;
             _queuePreviewPanel.Visible = false;
             _queuePreviewList.Controls.Clear();
-            if (_convoLayout != null && _convoLayout.RowStyles.Count > 4)
-                _convoLayout.RowStyles[4].Height = 0;
+            if (_convoLayout != null && _convoLayout.RowStyles.Count > 2)
+                _convoLayout.RowStyles[2].Height = 0;
             return;
         }
 
@@ -1072,12 +1068,12 @@ private void ToggleQueuePreview()
         }
         _queuePreviewList.ResumeLayout();
 
-        if (_convoLayout != null && _convoLayout.RowStyles.Count > 4)
+        if (_convoLayout != null && _convoLayout.RowStyles.Count > 2)
         {
             var visibleCount = _queuePreviewExpanded ? Math.Min(count, 8) : 0;
             var h = 28 + visibleCount * 24;
             if (_queuePreviewExpanded && count > 8) h += 24;
-            _convoLayout.RowStyles[4].Height = h;
+            _convoLayout.RowStyles[2].Height = h;
         }
     }
     /// <summary>剪贴板里有图片时存成 PNG 并加入附件；返回是否已按图片处理。</summary>
@@ -1129,8 +1125,6 @@ private void ToggleQueuePreview()
             ? "未选择附件"
             : $"已附加 {_attachedFiles.Count} 个文件：" + string.Join("; ", _attachedFiles);
         _lblAttach.ForeColor = _attachedFiles.Count == 0 ? ThemeManager.Current.SubtleText : ThemeManager.Current.Accent;
-        // 没有附件时整行收起，避免主页常驻一行无意义提示。
-        if (_convoLayout.RowStyles.Count > 3) _convoLayout.RowStyles[3].Height = _attachedFiles.Count == 0 ? 0 : 22;
     }
     private void SaveDelay()
     {
@@ -1175,6 +1169,7 @@ private void ToggleQueuePreview()
         _trkOpacity.Value = _cfg.OpacityPercent;
         _lblWorkDir.Text = "未选择工作目录";
         _txtInput.Clear();
+        _txtDetailPrompt.Clear();
         ApplyPalette();
         SetStatus("配置已重置");
     }

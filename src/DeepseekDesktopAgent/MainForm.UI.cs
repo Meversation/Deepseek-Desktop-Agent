@@ -485,45 +485,65 @@ public sealed partial class MainForm
     /// 对话页只保留“和 AI 的对话内容”。</summary>
     private void BuildDetailTab(Panel page)
     {
-        page.Padding = new Padding(20, 12, 20, 12);
-        var flow = new FlowLayoutPanel
+        page.Padding = new Padding(20, 10, 20, 12);
+        // 固定高度的小节 + 中间自适应高度的提示词区，内容始终一屏放下，不出现原生滚动条。
+        var layout = new BufferedTableLayoutPanel
         {
             Dock = DockStyle.Fill,
-            FlowDirection = FlowDirection.TopDown,
-            WrapContents = false,
-            AutoScroll = true
+            ColumnCount = 1,
+            RowCount = 11,
+            Margin = Padding.Empty
         };
-        _detailFlow = flow;
+        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));   // 0 工作目录
+        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 28));   // 1 路径
+        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));   // 2 按钮
+        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));   // 3 系统提示词
+        layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));   // 4 提示词正文
+        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));   // 5 附件
+        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));   // 6 附件按钮
+        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));   // 7 DeepSeek 网页
+        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));   // 8 网页按钮
+        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 26));   // 9 网页说明
+        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 30));   // 10 深度思考
 
-        flow.Controls.Add(SectionLabel("工作目录"));
+        var workTitle = SectionLabel("工作目录");
+        workTitle.Dock = DockStyle.Fill;
+        layout.Controls.Add(workTitle, 0, 0);
+
         _lblDetailWorkDir = new Label
         {
             Text = "未选择工作目录",
-            AutoSize = false,
-            Width = 720,
-            Height = 26,
+            Dock = DockStyle.Fill,
             TextAlign = ContentAlignment.MiddleLeft,
             AutoEllipsis = true,
             Margin = new Padding(2, 0, 0, 4)
         };
-        flow.Controls.Add(_lblDetailWorkDir);
+        layout.Controls.Add(_lblDetailWorkDir, 0, 1);
 
-        var workRow = new FlowLayoutPanel { AutoSize = true, WrapContents = false, Margin = new Padding(0, 0, 0, 4) };
+        var workRow = new FlowLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            WrapContents = false,
+            AutoSize = false,
+            Margin = new Padding(0, 0, 0, 2)
+        };
         _btnChooseDir2 = MakeButton("选择文件夹", 92);
         var backBtn = MakeButton("返回对话", 92);
         backBtn.Click += (_, _) => ShowMainPage(0);
         workRow.Controls.AddRange(new Control[] { _btnChooseDir2, backBtn });
-        flow.Controls.Add(workRow);
+        layout.Controls.Add(workRow, 0, 2);
 
-        flow.Controls.Add(SectionLabel("系统提示词"));
+        var promptTitle = SectionLabel("系统提示词");
+        promptTitle.Dock = DockStyle.Fill;
+        layout.Controls.Add(promptTitle, 0, 3);
+
         var promptCard = new RoundedPanel
         {
-            Width = 720,
-            Height = 240,
+            Dock = DockStyle.Fill,
             Radius = 12,
             FillRole = PanelFill.Input,
             Padding = new Padding(12, 8, 8, 8),
-            Margin = new Padding(0, 0, 0, 6)
+            Margin = new Padding(0, 2, 0, 6)
         };
         _txtDetailPrompt = new NoCaretTextBox
         {
@@ -544,74 +564,89 @@ public sealed partial class MainForm
         promptCard.Resize += (_, _) => _detailPromptMask.PlaceOver(_txtDetailPrompt, _detailPromptScroll);
         _txtDetailPrompt.HandleCreated += (_, _) => _detailPromptScroll.Attach(_txtDetailPrompt.Handle);
         _txtDetailPrompt.TextChanged += (_, _) => _detailPromptScroll.RefreshScroll();
-        flow.Controls.Add(promptCard);
+        layout.Controls.Add(promptCard, 0, 4);
 
-        flow.Controls.Add(SectionLabel("附件"));
-        _lblAttach = new Label
-        {
-            Text = "未选择附件",
-            AutoSize = false,
-            Width = 720,
-            Height = 26,
-            TextAlign = ContentAlignment.MiddleLeft,
-            AutoEllipsis = true,
-            Font = new Font("Microsoft YaHei UI", 8.25F),
-            Margin = new Padding(2, 0, 0, 4)
-        };
-        flow.Controls.Add(_lblAttach);
+        var attachTitle = SectionLabel("附件");
+        attachTitle.Dock = DockStyle.Fill;
+        layout.Controls.Add(attachTitle, 0, 5);
 
-        var attachRow = new FlowLayoutPanel { AutoSize = true, WrapContents = false };
         _btnAttach = MakeButton("添加附件", 88);
         _btnClearAttach = MakeButton("清除附件", 88);
         _btnAttach.Click += (_, _) => AttachFiles();
         _btnClearAttach.Click += (_, _) => ClearAttachments();
-        attachRow.Controls.AddRange(new Control[] { _btnAttach, _btnClearAttach });
-        flow.Controls.Add(attachRow);
+        _lblAttach = new Label
+        {
+            Text = "未选择附件",
+            AutoSize = false,
+            Dock = DockStyle.Fill,
+            TextAlign = ContentAlignment.MiddleLeft,
+            AutoEllipsis = true,
+            Font = new Font("Microsoft YaHei UI", 8.25F),
+            Margin = new Padding(8, 0, 0, 0)
+        };
+        var attachRow = new BufferedTableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 3,
+            RowCount = 1,
+            Margin = new Padding(0, 0, 0, 2)
+        };
+        attachRow.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 92));
+        attachRow.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 92));
+        attachRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        _btnAttach.Dock = DockStyle.Fill;
+        _btnAttach.Margin = new Padding(0, 0, 6, 0);
+        _btnClearAttach.Dock = DockStyle.Fill;
+        _btnClearAttach.Margin = new Padding(0, 0, 6, 0);
+        attachRow.Controls.Add(_btnAttach, 0, 0);
+        attachRow.Controls.Add(_btnClearAttach, 1, 0);
+        attachRow.Controls.Add(_lblAttach, 2, 0);
+        layout.Controls.Add(attachRow, 0, 6);
 
-        flow.Controls.Add(SectionLabel("DeepSeek 网页"));
-        var webRow = new FlowLayoutPanel { AutoSize = true, WrapContents = false };
+        var webTitle = SectionLabel("DeepSeek 网页");
+        webTitle.Dock = DockStyle.Fill;
+        layout.Controls.Add(webTitle, 0, 7);
+
         _btnShowWeb = MakeButton("显示网页会话", 128, "accent");
         _btnSwitch = MakeButton("切换网页会话", 120);
-        webRow.Controls.AddRange(new Control[] { _btnShowWeb, _btnSwitch });
-        flow.Controls.Add(webRow);
-        flow.Controls.Add(new Label
+        _btnShowWeb.Dock = DockStyle.Fill;
+        _btnShowWeb.Margin = new Padding(0, 0, 6, 0);
+        _btnSwitch.Dock = DockStyle.Fill;
+        _btnSwitch.Margin = new Padding(0, 0, 6, 0);
+        var webRow = new BufferedTableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 3,
+            RowCount = 1,
+            Margin = new Padding(0, 0, 0, 2)
+        };
+        webRow.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 136));
+        webRow.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 128));
+        webRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        webRow.Controls.Add(_btnShowWeb, 0, 0);
+        webRow.Controls.Add(_btnSwitch, 1, 0);
+        layout.Controls.Add(webRow, 0, 8);
+
+        layout.Controls.Add(new Label
         {
             Text = "网页默认隐藏，只有点击“显示网页会话”才会以独立窗口出现；被关闭后会自动恢复。",
-            AutoSize = false,
-            Width = 720,
-            Height = 26,
+            Dock = DockStyle.Fill,
+            TextAlign = ContentAlignment.MiddleLeft,
+            AutoEllipsis = true,
             ForeColor = ThemeManager.Current.SubtleText,
-            Margin = new Padding(2, 2, 0, 4)
-        });
+            Font = new Font("Microsoft YaHei UI", 8.25F),
+            Margin = new Padding(2, 0, 0, 2)
+        }, 0, 9);
 
         _chkDeepThink = new CheckBox
         {
             Text = "开启 DeepSeek 深度思考（需已连接网页）",
-            AutoSize = true,
+            Dock = DockStyle.Fill,
             Margin = new Padding(0, 2, 0, 2)
         };
-        flow.Controls.Add(_chkDeepThink);
+        layout.Controls.Add(_chkDeepThink, 0, 10);
 
-        page.Controls.Add(flow);
-
-        // 宽度跟随窗口：说明文字与提示词卡片按可视宽度收缩，避免出现横向滚动条。
-        bool fitting = false;
-        void FitWidths()
-        {
-            if (fitting) return;
-            fitting = true;
-            try
-            {
-                var w = Math.Max(320, flow.ClientSize.Width - 28);
-                foreach (Control c in flow.Controls)
-                    if (c is Label lb && !lb.AutoSize) lb.Width = w;
-                promptCard.Width = w;
-            }
-            finally { fitting = false; }
-        }
-        flow.ClientSizeChanged += (_, _) => FitWidths();
-        flow.HorizontalScroll.Enabled = false;
-        FitWidths();
+        page.Controls.Add(layout);
 
         // 工作目录只有一处真实来源（对话页输入框下方），详情页只做只读展示。
         _lblWorkDir.TextChanged += (_, _) => _lblDetailWorkDir.Text = _lblWorkDir.Text;
@@ -1012,7 +1047,6 @@ public sealed partial class MainForm
         for (var i = 0; i < pages.Length; i++) pages[i].Visible = i == index;
         // 切回设置页时复位滚动位置，避免上次聚焦导致的内容偏移。
         if (index == 2) _settingsFlow.AutoScrollPosition = new Point(0, 0);
-        if (index == 4) _detailFlow.AutoScrollPosition = new Point(0, 0);
         if (pages[index] == _sessionsPage)
         {
             ShowSessionDetail();
