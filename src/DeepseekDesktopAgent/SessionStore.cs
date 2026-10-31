@@ -33,6 +33,8 @@ public sealed class SessionRecord
     public Guid SessionId { get; set; }
     public string WorkDir { get; set; } = string.Empty;
     public string? Title { get; set; }
+    /// <summary>该会话对应的 DeepSeek 网页地址；旧会话可能为空。</summary>
+    public string? WebUrl { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
     public List<TurnRecord> Turns { get; set; } = new();
@@ -220,6 +222,23 @@ public sealed class SessionStore
                 var rec = LoadOrThrow(sessionId);
                 rec.Title = title;
                 rec.UpdatedAt = DateTimeOffset.UtcNow;
+                WriteSession(rec);
+                return true;
+            }
+            catch { return false; }
+        }
+    }
+    /// <summary>记录会话对应的网页地址；会话不存在或地址非法时返回 false。</summary>
+    public bool UpdateWebUrl(Guid sessionId, string? url)
+    {
+        if (string.IsNullOrWhiteSpace(url)) return false;
+        lock (GetLock(sessionId))
+        {
+            try
+            {
+                var rec = LoadOrThrow(sessionId);
+                if (rec.WebUrl == url) return true;
+                rec.WebUrl = url;
                 WriteSession(rec);
                 return true;
             }

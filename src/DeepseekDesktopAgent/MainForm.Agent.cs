@@ -167,7 +167,6 @@ public sealed partial class MainForm
             _rbNew.Enabled = false;
             _rbOld.Enabled = false;
             _txtInput.Clear();
-            _userMessageCount++;
             UpdateCounters();
             // 新对话：新建会话；旧对话：并入当前工作目录下最近的会话（ListSessions 已按 UpdatedAt 倒序）。
             if (_rbNew.Checked)
@@ -196,6 +195,41 @@ public sealed partial class MainForm
             _rbOld.Enabled = true;
         }
     }
+    private async Task EnsureSessionWebChatAsync(Guid sessionId, CancellationToken ct = default)
+    {
+        if (_cdp == null) return;
+        var record = _sessions.LoadSession(sessionId);
+        var url = record?.WebUrl ?? "";
+        if (IsSessionUrl(url))
+        {
+            try
+            {
+                var current = await _cdp.GetCurrentUrlAsync();
+                if (!string.Equals(current, url, StringComparison.OrdinalIgnoreCase))
+                {
+                    SetStatus("正在切换到会话对应的网页...");
+                    await _cdp.NavigateAsync(url);
+                    await Task.Delay(1200, ct);
+                }
+                _webSessionReady = sessionId;
+            }
+            catch (OperationCanceledException) { throw; }
+            catch { }
+            return;
+        }
+
+        // 旧会话没有记录网页地址：新开一个网页，只把系统提示词注入到这个本地会话。
+        SetStatus("正在为新网页注入系统提示词...");
+        await _cdp.NavigateAsync("https://chat.deepseek.com");
+        await Task.Delay(1500, ct);
+        Prompt.EnsureSkills(_tempDir);
+        var systemFile = WriteSystemFile(SystemPromptText());
+        _webSessionReady = null;
+        // 直接发送系统提示词：不嵌套 RunConversationAsync，避免把忙碌状态提前释放、误触发队列。
+        await SendAndReceiveAsync("system.txt", new List<string> { systemFile }, ct, sessionId);
+        _webSessionReady = sessionId;
+    }
+
     /// <summary>
     /// 只返回“已经真正落盘”的会话地址：URL 中的会话 id 必须已出现在 DeepSeek 侧边栏列表里。
     /// 新建对话时浏览器会短暂使用临时 id，直接保存会导致下次打开提示“该对话不存在”。
@@ -264,15 +298,10 @@ public sealed partial class MainForm
     /// </summary>
     private async Task ContinueSessionAsync(SessionTreeNode node, string text)
     {
-        if (_busy)
-        {
-            SetStatus("请先停止当前任务，再继续该会话");
-            return;
-        }
-
+        // 运行中也可以接续别的会话：消息会绑定到该会话并排队，等当前任务结束后切回对应网页发送。
         _sessionId = node.SessionId;
         _turnId = null;
-        if (!string.IsNullOrWhiteSpace(node.WorkDir) &&
+        if (!_busy && !string.IsNullOrWhiteSpace(node.WorkDir) &&
             !string.Equals(node.WorkDir, _cfg.WorkDir, StringComparison.OrdinalIgnoreCase))
         {
             _cfg.WorkDir = node.WorkDir;
@@ -300,8 +329,9 @@ public sealed partial class MainForm
         sb.AppendLine();
         sb.Append("用户新指令：" + text);
 
+        // 先把这个会话的历史（或它自己的实时输出）显示出来，避免看到上一个会话的残留内容。
+        LoadSessionToChatArea(node);
         _txtInput.Text = sb.ToString();
-        ShowMainPage(0);
         await SendUserAsync();
     }
 
@@ -320,7 +350,8 @@ public sealed partial class MainForm
             var queuedFiles = _attachedFiles.ToList();
             if (string.IsNullOrWhiteSpace(queuedText) && queuedFiles.Count == 0) return;
 
-            lock (_queueLock) _queue.Enqueue(new QueuedMessage(queuedText, queuedFiles));
+            // 队列项绑定当时正在查看的会话，处理时切回对应网页，避免串到别人正在跑的会话。
+            lock (_queueLock) _queue.Enqueue(new QueuedMessage(queuedText, queuedFiles, _sessionId, TargetWorkDir()));
             SyncRuntimePending();
 
             _txtInput.Clear();
@@ -333,15 +364,59 @@ public sealed partial class MainForm
             return;
         }
 
-        if (_browser == null || _cdp == null || !_browser.IsAlive)
-        {
-            MessageBox.Show(this, "请先选择工作目录并启动 DeepSeek 浏览器。", "Deepseek-Desktop-Agent", MessageBoxButtons.OK, MessageBoxIcon.Information);
-            return;
-        }
-
         var text = _txtInput.Text;
         var files = _attachedFiles.ToList();
         if (string.IsNullOrWhiteSpace(text) && files.Count == 0) return;
+
+        // 当前没有会话：先新建网页会话并注入 system.txt / skill，再发送用户内容。
+        if (_sessionId == null)
+        {
+            _rbNew.Checked = true;
+            _txtInput.Clear();
+            ClearAttachments();
+            _userMessageCount++;
+            UpdateCounters();
+            SetStatus("正在创建新会话并注入系统提示词...");
+            _suppressQueuePump = true;
+            try
+            {
+                await StartFlowAsync();
+            }
+            finally
+            {
+                _suppressQueuePump = false;
+            }
+            if (_sessionId == null || _cdp == null || _browser == null || !_browser.IsAlive)
+            {
+                _txtInput.Text = text;
+                _attachedFiles.Clear();
+                _attachedFiles.AddRange(files);
+                UpdateInputPlaceholder();
+                SetStatus("新会话创建失败，请检查 DeepSeek 是否已登录");
+                return;
+            }
+            await RunConversationAsync(text, files);
+            return;
+        }
+
+        if (_browser == null || _cdp == null || !_browser.IsAlive)
+        {
+            _webSessionReady = null;
+            try
+            {
+                await EnsureBrowserAsync(CancellationToken.None);
+            }
+            catch (Exception ex)
+            {
+                ShowError("启动 DeepSeek 浏览器失败", ex);
+                return;
+            }
+            if (_browser == null || _cdp == null || !_browser.IsAlive)
+            {
+                MessageBox.Show(this, "请先选择工作目录并启动 DeepSeek 浏览器。", "Deepseek-Desktop-Agent", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+        }
 
         _txtInput.Clear();
         ClearAttachments();
@@ -349,20 +424,39 @@ public sealed partial class MainForm
         UpdateCounters();
         await RunConversationAsync(text, files);
     }
-    private async Task RunConversationAsync(string message, List<string> files)
+
+    /// <summary>队列项要续接的工作目录：优先使用该会话自身记录的工作目录。</summary>
+    private string TargetWorkDir()
+    {
+        if (_sessionId is { } sid)
+        {
+            try
+            {
+                var record = _sessions.LoadSession(sid);
+                if (record != null && !string.IsNullOrWhiteSpace(record.WorkDir)) return record.WorkDir;
+            }
+            catch { }
+        }
+        return _cfg.WorkDir;
+    }
+    private async Task<Guid?> RunConversationAsync(string message, List<string> files,
+        Guid? targetSession = null, bool forceNewSession = false)
     {
         if (_cdp == null)
         {
             ShowError("发送失败", new InvalidOperationException("DeepSeek 调试连接未建立。"));
-            return;
+            return null;
         }
 
+        if (!File.Exists(Path.Combine(_tempDir, "skill_all.zip")))
+            Prompt.EnsureSkills(_tempDir);
         message = AppendRelevantSkills(message);
         var isSystemRound = string.Equals(message, "system.txt", StringComparison.Ordinal);
         var lastReply = string.Empty;
         var turnStatus = "Failed";
         var stopMode = "None";
         Guid? turnId = null;
+        Guid? runSession = null;
         using var cts = new CancellationTokenSource();
         _runCts = cts;
         SetBusy(true);
@@ -372,25 +466,41 @@ public sealed partial class MainForm
 
         try
         {
-            if (_sessionId == null)
+            runSession = forceNewSession ? null : (targetSession ?? _sessionId);
+            if (runSession == null)
             {
                 var title = isSystemRound ? "会话 " + DateTime.Now.ToString("MM-dd HH:mm") : BuildSessionTitle(message);
-                _sessionId = _sessions.CreateSession(_cfg.WorkDir, title).SessionId;
+                runSession = _sessions.CreateSession(_cfg.WorkDir, title).SessionId;
+                // 只有在空白视图上发起时才把当前视图绑到新会话；浏览别的会话时不抢占视图。
+                if (_sessionId == null) _sessionId = runSession;
+                if (isSystemRound) _webSessionReady = runSession;
                 isFirstTurn = !isSystemRound;
                 RunOnUi(RefreshSessions);
             }
             if (!isSystemRound)
             {
-                turnId = _sessions.BeginTurn(_sessionId.Value, TrimForStore(message)).TurnId;
+                turnId = _sessions.BeginTurn(runSession.Value, TrimForStore(message)).TurnId;
                 _turnId = turnId;
-                _runtimeState.SessionId = _sessionId;
+                _runtimeState.SessionId = runSession;
                 _runtimeState.TurnId = turnId;
                 UpdateRuntime(AgentPhase.Thinking);
             }
         }
         catch { }
 
+        _liveSessionId = runSession;
+        _liveTranscript = "";
         var transcript = new StringBuilder();
+        // 只把进度写进本轮所属会话的视图；用户正在浏览别的会话时保持那份内容不动，也不重绘、不滚动。
+        void ApplyProgress()
+        {
+            var text = transcript.ToString();
+            _liveTranscript = text;
+            if (isSystemRound || runSession != _sessionId) return;
+            _lastReplyRaw = text;
+            RenderReply();
+            ScrollReplyToEnd();
+        }
         if (!isSystemRound)
         {
             transcript.AppendLine("### 👤 你");
@@ -400,6 +510,10 @@ public sealed partial class MainForm
 
         try
         {
+            if (!isSystemRound && runSession is { } target && _webSessionReady != target)
+            {
+                await EnsureSessionWebChatAsync(target, cts.Token);
+            }
             if (_waitPageIdleAfterStop)
             {
                 _waitPageIdleAfterStop = false;
@@ -407,16 +521,13 @@ public sealed partial class MainForm
                 await _cdp.WaitForReplyIdleAsync(120000, cts.Token);
             }
 
-            var reply = await SendAndReceiveAsync(message, files, cts.Token);
+            var reply = await SendAndReceiveAsync(message, files, cts.Token, runSession);
             lastReply = reply;
 
             transcript.AppendLine("### 🤖 DeepSeek");
             transcript.AppendLine(reply);
             transcript.AppendLine();
-            _lastReplyRaw = transcript.ToString();
-            RenderReply();
-            _txtReply.SelectionStart = _txtReply.TextLength;
-            _txtReply.ScrollToCaret();
+            ApplyProgress();
 
             for (var hop = 0; hop < 60; hop++)
             {
@@ -428,8 +539,7 @@ public sealed partial class MainForm
                     stopMode = "Safe";
                     SetStatus("已安全停止：本轮不再继续调用工具");
                     transcript.AppendLine("> ⚠️ **[已安全停止]** 当前工具已完成，本轮后续工具与追问均已取消。");
-                    _lastReplyRaw = transcript.ToString();
-                    RenderReply();
+                    ApplyProgress();
                     break;
                 }
                 var call = ToolProtocol.Parse(reply);
@@ -446,10 +556,7 @@ public sealed partial class MainForm
                         transcript.AppendLine("### 🤖 DeepSeek (纠错)");
                         transcript.AppendLine(reply);
                         transcript.AppendLine();
-                        _lastReplyRaw = transcript.ToString();
-                        RenderReply();
-                        _txtReply.SelectionStart = _txtReply.TextLength;
-                        _txtReply.ScrollToCaret();
+                        ApplyProgress();
                         continue;
                     }
                     turnStatus = "Completed";
@@ -469,10 +576,7 @@ public sealed partial class MainForm
                     transcript.AppendLine("```");
                 }
                 transcript.AppendLine();
-                _lastReplyRaw = transcript.ToString();
-                RenderReply();
-                _txtReply.SelectionStart = _txtReply.TextLength;
-                _txtReply.ScrollToCaret();
+                ApplyProgress();
 
                 ToolResult result;
                 try
@@ -487,10 +591,7 @@ public sealed partial class MainForm
                 transcript.AppendLine(resMsg.Length > 3000 ? resMsg.Substring(0, 3000) + "\n...(内容过长已截断)" : resMsg);
                 transcript.AppendLine("```");
                 transcript.AppendLine();
-                _lastReplyRaw = transcript.ToString();
-                RenderReply();
-                _txtReply.SelectionStart = _txtReply.TextLength;
-                _txtReply.ScrollToCaret();
+                ApplyProgress();
 
                 if (_safeStopRequested)
                 {
@@ -499,8 +600,7 @@ public sealed partial class MainForm
                     stopMode = "Safe";
                     SetStatus("已安全停止：当前工具已完成");
                     transcript.AppendLine("> ⚠️ **[已安全停止]** 当前工具已执行完毕，结果不再回传，后续工具与追问均已取消。");
-                    _lastReplyRaw = transcript.ToString();
-                    RenderReply();
+                    ApplyProgress();
                     break;
                 }
 
@@ -511,10 +611,7 @@ public sealed partial class MainForm
                 transcript.AppendLine("### 🤖 DeepSeek");
                 transcript.AppendLine(reply);
                 transcript.AppendLine();
-                _lastReplyRaw = transcript.ToString();
-                RenderReply();
-                _txtReply.SelectionStart = _txtReply.TextLength;
-                _txtReply.ScrollToCaret();
+                ApplyProgress();
             }
 
             await CaptureThinkingAsync(cts.Token);
@@ -525,8 +622,7 @@ public sealed partial class MainForm
             stopMode = "Immediate";
             SetStatus("已急停");
             transcript.AppendLine("> ⚠️ **[已急停]** 当前任务被用户终止，队列中的消息将在停止完成后发送。");
-            _lastReplyRaw = transcript.ToString();
-            RenderReply();
+            ApplyProgress();
         }
         catch (Exception) when (cts.IsCancellationRequested)
         {
@@ -534,15 +630,13 @@ public sealed partial class MainForm
             stopMode = "Immediate";
             SetStatus("已急停");
             transcript.AppendLine("> ⚠️ **[已急停]** 当前任务被用户终止，队列中的消息将在停止完成后发送。");
-            _lastReplyRaw = transcript.ToString();
-            RenderReply();
+            ApplyProgress();
         }
         catch (Exception ex)
         {
             SetStatus("运行失败: " + ex.Message);
             transcript.AppendLine("> ❌ **[运行错误]** " + ex.Message);
-            _lastReplyRaw = transcript.ToString();
-            RenderReply();
+            ApplyProgress();
 
             if (ex.Message.Contains("sign_in") || ex.Message.Contains("登录页"))
             {
@@ -557,7 +651,9 @@ public sealed partial class MainForm
         finally
         {
             if (_runCts == cts) _runCts = null;
-            if (turnId is { } finishedTurn && _sessionId is { } finishedSession)
+            _liveSessionId = null;
+            _liveTranscript = "";
+            if (turnId is { } finishedTurn && runSession is { } finishedSession)
             {
                 try
                 {
@@ -576,11 +672,14 @@ public sealed partial class MainForm
                     }
                 }
                 catch { }
+                // 本轮归属的会话可能不在当前视图里，只刷新列表，不碰用户正在看的会话内容。
+                RunOnUi(RefreshSessions);
             }
             SetBusy(false);
             UpdateCounters();
-            StartNextQueuedMessage();
+            if (!_suppressQueuePump) StartNextQueuedMessage();
         }
+        return runSession;
     }
     private static string BuildSessionTitle(string message)
     {
@@ -750,7 +849,8 @@ public sealed partial class MainForm
         await Task.Delay(ms, ct);
     }
 
-    private async Task<string> SendAndReceiveAsync(string text, IReadOnlyList<string> files, CancellationToken ct)
+    private async Task<string> SendAndReceiveAsync(string text, IReadOnlyList<string> files,
+        CancellationToken ct, Guid? sessionId = null)
     {
         if (_cdp == null) throw new InvalidOperationException("CDP 未连接。");
 
@@ -794,6 +894,11 @@ public sealed partial class MainForm
                 {
                     _lastSessionUrl = persisted;
                     SaveLastSession();
+                    if (sessionId is { } sid)
+                    {
+                        _sessions.UpdateWebUrl(sid, persisted);
+                        _webSessionReady = sid;
+                    }
                 }
                 SetStatus("已收到回复");
                 return reply;
@@ -816,8 +921,7 @@ public sealed partial class MainForm
         RunOnUi(() =>
         {
             RenderReply();
-            _txtReply.SelectionStart = _txtReply.TextLength;
-            _txtReply.ScrollToCaret();
+            ScrollReplyToEnd();
         });
     }
     private void RenderReply()
@@ -839,6 +943,14 @@ public sealed partial class MainForm
             _txtReply.Text = _lastReplyRaw;
         }
     }
+
+    /// <summary>只有当前视图就是正在输出的会话时才自动滚到底，浏览其他会话时不打扰阅读。</summary>
+    private void ScrollReplyToEnd()
+    {
+        if (_liveSessionId != null && _liveSessionId != _sessionId) return;
+        _txtReply.SelectionStart = _txtReply.TextLength;
+        _txtReply.ScrollToCaret();
+    }
     private async Task SwitchSessionAsync()
     {
         if (_busy)
@@ -858,31 +970,74 @@ public sealed partial class MainForm
             using var picker = new SessionPickerForm(_cdp, current);
             if (picker.ShowDialog(this) != DialogResult.OK) return;
 
+            var systemFile = WriteSystemFile(SystemPromptText());
             if (picker.CreateNew)
             {
                 await _cdp.NavigateAsync("https://chat.deepseek.com");
+                // 明确要求新会话：清空当前视图，避免新会话的内容写进正在浏览的旧会话。
+                _sessionId = null;
+                _turnId = null;
+                _lastReplyRaw = "";
                 _rbNew.Checked = true;
-                var systemFile = WriteSystemFile(SystemPromptText());
+                _webSessionReady = null;
+                RenderReply();
                 _userMessageCount++;
                 UpdateCounters();
-                await RunConversationAsync("system.txt", new List<string> { systemFile });
+                await RunConversationAsync("system.txt", new List<string> { systemFile }, forceNewSession: true);
             }
             else
             {
-                await _cdp.NavigateAsync(picker.SelectedUrl);
-                _rbOld.Checked = true;
-                _lastSessionUrl = picker.SelectedUrl;
+                var selectedUrl = picker.SelectedUrl;
+                await _cdp.NavigateAsync(selectedUrl);
+                _lastSessionUrl = selectedUrl;
                 SaveLastSession();
-                var systemFile = WriteSystemFile(SystemPromptText());
+                // 网页会话必须绑定到唯一的本地会话：有同网址的就接续，没有就新建并记录网址。
+                var sessionId = FindLocalSessionByWebUrl(selectedUrl);
+                if (sessionId is { } existing)
+                {
+                    _sessionId = existing;
+                    _webSessionReady = existing;
+                }
+                else
+                {
+                    var created = _sessions.CreateSession(_cfg.WorkDir,
+                        "会话 " + DateTime.Now.ToString("MM-dd HH:mm")).SessionId;
+                    _sessions.UpdateWebUrl(created, selectedUrl);
+                    _sessionId = created;
+                    _webSessionReady = created;
+                    RunOnUi(RefreshSessions);
+                }
+                _turnId = null;
+                _lastReplyRaw = "";
+                _rbOld.Checked = true;
+                RenderReply();
                 _userMessageCount++;
                 UpdateCounters();
-                await RunConversationAsync(ContinuationMessage(), new List<string> { systemFile });
+                await RunConversationAsync(ContinuationMessage(), new List<string> { systemFile }, targetSession: _sessionId);
             }
         }
         catch (Exception ex)
         {
             ShowError("切换会话失败", ex);
         }
+    }
+
+    /// <summary>按网页会话地址找到对应的本地会话，保证同一条网页对话始终落在同一份记录里。</summary>
+    private Guid? FindLocalSessionByWebUrl(string url)
+    {
+        if (!IsSessionUrl(url)) return null;
+        try
+        {
+            foreach (var summary in _sessions.ListSessions())
+            {
+                var record = _sessions.LoadSession(summary.SessionId);
+                if (record != null &&
+                    string.Equals(record.WebUrl, url, StringComparison.OrdinalIgnoreCase))
+                    return record.SessionId;
+            }
+        }
+        catch { }
+        return null;
     }
     /// <summary>急停：立刻打断本轮 Agent 运行（含正在执行的工具与等待回复）。</summary>
     private void StopCurrent()
@@ -929,7 +1084,70 @@ public sealed partial class MainForm
         if (next == null) return;
 
         SetStatus("正在发送队列中的消息...");
-        _ = RunConversationAsync(next.Text, next.Files);
+        _ = RunQueuedMessageAsync(next);
+    }
+
+    /// <summary>按队列项归属的会话执行：先切回对应网页/工作目录，再发送，避免串会话。</summary>
+    private async Task RunQueuedMessageAsync(QueuedMessage next)
+    {
+        try
+        {
+            // 排队期间浏览器可能被关闭：先恢复连接，再按归属会话执行。
+            if (_browser == null || _cdp == null || !_browser.IsAlive)
+            {
+                await EnsureBrowserAsync(CancellationToken.None);
+                _webSessionReady = null;
+            }
+            if (next.SessionId is not { } sessionId)
+            {
+                // 归属为“新会话”：沿用新建流程注入 system.txt 与 skill。
+                if (!string.IsNullOrWhiteSpace(next.WorkDir) &&
+                    !string.Equals(next.WorkDir, _cfg.WorkDir, StringComparison.OrdinalIgnoreCase))
+                {
+                    _cfg.WorkDir = next.WorkDir;
+                    ConfigService.Save(_cfg);
+                    _lblWorkDir.Text = next.WorkDir;
+                    RefreshSystemPrompt();
+                }
+                _rbNew.Checked = true;
+                var viewBefore = _sessionId;
+                _suppressQueuePump = true;
+                Guid? created;
+                try
+                {
+                    await StartFlowAsync();
+                    created = _sessionId;
+                }
+                finally
+                {
+                    _suppressQueuePump = false;
+                }
+                if (created == null || _cdp == null || _browser == null || !_browser.IsAlive)
+                {
+                    SetStatus("队列消息失败：新会话未能创建");
+                    return;
+                }
+                // 用户在排队后又浏览了别的会话：不要抢占当前视图。
+                _sessionId = viewBefore ?? created;
+                await RunConversationAsync(next.Text, next.Files, targetSession: created);
+                return;
+            }
+
+            if (!string.IsNullOrWhiteSpace(next.WorkDir) &&
+                !string.Equals(next.WorkDir, _cfg.WorkDir, StringComparison.OrdinalIgnoreCase))
+            {
+                _cfg.WorkDir = next.WorkDir;
+                ConfigService.Save(_cfg);
+                _lblWorkDir.Text = next.WorkDir;
+                RefreshSystemPrompt();
+            }
+            // RunConversationAsync 会在忙碌状态下按会话切换网页，这里不提前切，避免与用户新消息并发。
+            await RunConversationAsync(next.Text, next.Files, targetSession: sessionId);
+        }
+        catch (Exception ex)
+        {
+            SetStatus("队列消息失败：" + ex.Message);
+        }
     }
 
     private void UpdateQueueHint() => RunOnUi(ApplyQueueHint);

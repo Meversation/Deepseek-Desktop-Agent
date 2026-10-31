@@ -3,6 +3,8 @@ import { Composition } from "remotion";
 import { DeepseekIntro, TOTAL_FRAMES } from "./DeepseekIntro";
 import { BilibiliCover } from "./Cover";
 import { QQAvatar } from "./QQAvatar";
+import { WeeklyReport, WEEKLY_TOTAL } from "./WeeklyReport";
+import { WeeklyCover } from "./WeeklyCover";
 
 export const Root: React.FC = () => {
   return (
@@ -46,6 +48,30 @@ export const Root: React.FC = () => {
         fps={30}
         width={1000}
         height={1000}
+      />
+      <Composition
+        id="WeeklyReport"
+        component={WeeklyReport}
+        durationInFrames={WEEKLY_TOTAL}
+        fps={30}
+        width={1920}
+        height={1080}
+      />
+      <Composition
+        id="WeeklyCover169"
+        component={WeeklyCover}
+        durationInFrames={1}
+        fps={30}
+        width={1920}
+        height={1080}
+      />
+      <Composition
+        id="WeeklyCover43"
+        component={WeeklyCover}
+        durationInFrames={1}
+        fps={30}
+        width={1440}
+        height={1080}
       />
 
     </>

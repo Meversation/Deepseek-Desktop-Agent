@@ -15,6 +15,13 @@ public sealed partial class MainForm : Form, IToolHost, IMessageFilter
     private readonly SessionStore _sessions = new();
     private Guid? _sessionId;
     private Guid? _turnId;
+    // 正在流式输出的会话与文本：只渲染到它自己的会话视图，避免串到当前浏览的会话。
+    private Guid? _liveSessionId;
+    private string _liveTranscript = "";
+    // 网页当前已加载的本地会话，用于避免重复导航与重复注入系统提示词。
+    private Guid? _webSessionReady;
+    // 新建会话引导期间暂停队列泵，避免系统提示词轮次结束后抢先发送下一条排队消息。
+    private bool _suppressQueuePump;
     private readonly AgentRuntimeState _runtimeState = new()
     {
         Pid = Environment.ProcessId,
@@ -95,6 +102,7 @@ public sealed partial class MainForm : Form, IToolHost, IMessageFilter
     private LineScrollBar _detailScroll = null!;
     private Label _lblSessionHead = null!;
     private TextBox _txtSessionInput = null!;
+    private Label _lblSessionInputPlaceholder = null!;
     private ScrollMask _sessionInputMask = null!;
     private LineScrollBar _sessionInputScroll = null!;
     private Button _btnSessionSend = null!;

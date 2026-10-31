@@ -712,17 +712,22 @@ public sealed partial class MainForm
     /// <summary>Agent 运行期间通过输入框提交、等待本轮结束后发送的消息。</summary>
     private sealed class QueuedMessage
     {
-        public QueuedMessage(string text, List<string> files)
+        public QueuedMessage(string text, List<string> files, Guid? sessionId, string workDir)
         {
             Id = Guid.NewGuid();
             Text = text;
             Files = files;
+            SessionId = sessionId;
+            WorkDir = workDir ?? string.Empty;
         }
 
         public Guid Id { get; }
 
         public string Text { get; set; }
         public List<string> Files { get; }
+        /// <summary>该消息归属的本地会话；null 表示发送时要新建会话。</summary>
+        public Guid? SessionId { get; }
+        public string WorkDir { get; }
     }
 }
 

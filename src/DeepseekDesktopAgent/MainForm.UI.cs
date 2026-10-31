@@ -1056,6 +1056,8 @@ public sealed partial class MainForm
         _detailMask.BackColor = ThemeManager.Current.Input;
         _txtSessionInput.BackColor = ThemeManager.Current.Input;
         _txtSessionInput.ForeColor = ThemeManager.Current.Text;
+        _lblSessionInputPlaceholder.ForeColor = ThemeManager.Current.SubtleText;
+        _lblSessionInputPlaceholder.BackColor = _txtSessionInput.BackColor;
         _sessionInputMask.BackColor = ThemeManager.Current.Input;
         _sessionInputScroll.BackColor = ThemeManager.Current.Input;
         _sessionInputScroll.Invalidate();
@@ -1268,12 +1270,24 @@ public sealed partial class MainForm
             Font = new Font("Microsoft YaHei UI", 9.5F),
             Margin = Padding.Empty
         };
+        _lblSessionInputPlaceholder = new Label
+        {
+            Text = "继续该会话的任务，Ctrl+Enter 发送…",
+            AutoSize = false,
+            Width = 480,
+            Height = 22,
+            Left = 2,
+            Top = 2,
+            Visible = false,
+            Font = new Font("Microsoft YaHei UI", 8.25F)
+        };
         _sessionInputMask = new ScrollMask { Width = SystemInformation.VerticalScrollBarWidth, Target = _txtSessionInput };
         _sessionInputScroll = new LineScrollBar { Dock = DockStyle.Right, Width = 12, Margin = Padding.Empty };
         // 文本框与自绘滚动条放在同一个容器里，避免系统原生滚动条露出来。
         var inputHost = new BufferedPanel { Dock = DockStyle.Fill, Margin = Padding.Empty };
         inputHost.BackColor = ThemeManager.Current.Input;
         inputHost.Controls.Add(_txtSessionInput);
+        inputHost.Controls.Add(_lblSessionInputPlaceholder);
         inputHost.Controls.Add(_sessionInputScroll);
         inputHost.Controls.Add(_sessionInputMask);
         _sessionInputMask.BringToFront();
@@ -1303,6 +1317,12 @@ public sealed partial class MainForm
         _inputFill.Add(toolbar);
         _txtSessionInput.HandleCreated += (_, _) => _sessionInputScroll.Attach(_txtSessionInput.Handle);
         _txtSessionInput.TextChanged += (_, _) => _sessionInputScroll.RefreshScroll();
+        _txtSessionInput.Enter += (_, _) => { _lblSessionInputPlaceholder.Visible = false; };
+        _txtSessionInput.Leave += (_, _) =>
+        {
+            _lblSessionInputPlaceholder.Visible = _txtSessionInput.TextLength == 0;
+            if (_lblSessionInputPlaceholder.Visible) _lblSessionInputPlaceholder.BringToFront();
+        };
         _btnSessionSend.Click += (_, _) => TryContinueSession();
         inputCard.Controls.Add(inputGrid);
 
@@ -1385,6 +1405,11 @@ public sealed partial class MainForm
     /// <summary>删除当前选中会话（不可恢复），同时清理正在使用的会话指针。</summary>
     private void DeleteSelectedSession()
     {
+        if (_busy)
+        {
+            SetStatus("任务运行中，暂时不能删除会话");
+            return;
+        }
         var node = SelectedSessionNode();
         if (node == null)
         {
@@ -1541,41 +1566,53 @@ public sealed partial class MainForm
     private void LoadSessionToChatArea(SessionTreeNode node)
     {
         ShowMainPage(0);
-        var record = _sessions.LoadSession(node.SessionId);
-        if (record == null || record.Turns.Count == 0)
-        {
-            _txtInput.Clear();
-            _lastReplyRaw = "";
-            RenderReply();
-            return;
-        }
-
-        var sb = new StringBuilder();
-        sb.AppendLine("**历史会话回顾** - " + node.DisplayTitle).AppendLine();
-        foreach (var turn in record.Turns)
-        {
-            if (!string.IsNullOrWhiteSpace(turn.Prompt))
-            {
-                sb.AppendLine("### 👤 你");
-                sb.AppendLine(turn.Prompt.Trim());
-                sb.AppendLine();
-            }
-            if (!string.IsNullOrWhiteSpace(turn.Reply))
-            {
-                sb.AppendLine("### 🤖 DeepSeek");
-                sb.AppendLine(turn.Reply.Trim());
-                sb.AppendLine();
-            }
-        }
-
-        _lastReplyRaw = sb.ToString();
-        RenderReply();
-        _txtReply.SelectionStart = _txtReply.TextLength;
-        _txtReply.ScrollToCaret();
-
         _sessionId = node.SessionId;
         _turnId = null;
-        if (!string.IsNullOrWhiteSpace(node.WorkDir) && node.WorkDir != _cfg.WorkDir)
+
+        // 该会话正在输出：直接显示它的实时内容，不再重复加载历史。
+        if (_liveSessionId == node.SessionId)
+        {
+            _lastReplyRaw = _liveTranscript;
+            RenderReply();
+            ScrollReplyToEnd();
+        }
+        else
+        {
+            var record = _sessions.LoadSession(node.SessionId);
+            if (record == null || record.Turns.Count == 0)
+            {
+                _txtInput.Clear();
+                _lastReplyRaw = "";
+                RenderReply();
+            }
+            else
+            {
+                var sb = new StringBuilder();
+                sb.AppendLine("**历史会话回顾** - " + node.DisplayTitle).AppendLine();
+                foreach (var turn in record.Turns)
+                {
+                    if (!string.IsNullOrWhiteSpace(turn.Prompt))
+                    {
+                        sb.AppendLine("### 👤 你");
+                        sb.AppendLine(turn.Prompt.Trim());
+                        sb.AppendLine();
+                    }
+                    if (!string.IsNullOrWhiteSpace(turn.Reply))
+                    {
+                        sb.AppendLine("### 🤖 DeepSeek");
+                        sb.AppendLine(turn.Reply.Trim());
+                        sb.AppendLine();
+                    }
+                }
+
+                _lastReplyRaw = sb.ToString();
+                RenderReply();
+                ScrollReplyToEnd();
+            }
+        }
+
+        // 任务运行中浏览别的会话只做只读查看，不能改运行中任务的工作目录。
+        if (!_busy && !string.IsNullOrWhiteSpace(node.WorkDir) && node.WorkDir != _cfg.WorkDir)
         {
             _cfg.WorkDir = node.WorkDir;
             ConfigService.Save(_cfg);

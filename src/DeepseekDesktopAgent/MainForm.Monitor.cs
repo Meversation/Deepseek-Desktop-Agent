@@ -114,6 +114,8 @@ public sealed partial class MainForm
             }
             _cdp = new CdpClient();
             await _cdp.ConnectAsync(_cfg.BrowserPort, CancellationToken.None);
+            // 新连接不可能已经停留在某个会话页面上，清掉“网页已就绪”标记，下次发送时按会话重新切换。
+            _webSessionReady = null;
             await _cdp.NavigateAsync(string.IsNullOrWhiteSpace(_lastSessionUrl) ? "https://chat.deepseek.com" : _lastSessionUrl);
             var bounds = await _cdp.GetWindowBoundsAsync(CancellationToken.None);
             var adopted = bounds is { } b && _browser.TryAdoptByBounds(b.Left, b.Top, b.Width, b.Height);
