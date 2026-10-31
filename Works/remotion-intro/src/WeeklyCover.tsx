@@ -52,7 +52,7 @@ export const WeeklyCover: React.FC = () => {
             color: C.text,
           }}
         >
-          用 DeepSeek 自动化
+          桌面 Agent 跑通
         </div>
         <div
           style={{
