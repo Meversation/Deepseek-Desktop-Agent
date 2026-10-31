@@ -71,3 +71,7 @@ Deepseek-Desktop-Agent.exe --selftest
 ## 协议
 
 本项目遵循 GPL-3.0 协议。原始实现作者：YaoGaoChaoLe。
+
+## 致谢
+
+本项目的思路验证与基础工具框架参考了开源项目 [YaoGaoChaoLe/EAgent](https://github.com/YaoGaoChaoLe/EAgent)。在继承其工具协议与提示词设计的基础上，本项目使用 C# 对界面与运行时进行了彻底重写。在此对原作者及开源社区表示感谢。
