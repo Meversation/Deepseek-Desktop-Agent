@@ -64,28 +64,40 @@ export const WeeklyCover: React.FC = () => {
         <div
           style={{
             marginTop: 26 * u,
-            fontSize: 50 * u,
-            fontWeight: 800,
-            color: C.text,
+            fontSize: 40 * u,
+            fontWeight: 700,
+            color: C.subtle,
             lineHeight: 1.15,
-            letterSpacing: -1 * u,
+            letterSpacing: -0.5 * u,
           }}
         >
-          更新日志
+          DeepSeek网页端
         </div>
         <div
           style={{
             marginTop: 4 * u,
-            fontSize: 72 * u,
+            fontSize: 54 * u,
+            fontWeight: 800,
+            lineHeight: 1.1,
+            letterSpacing: -1 * u,
+            color: C.text,
+          }}
+        >
+          变成本地 Agent
+        </div>
+        <div
+          style={{
+            marginTop: 16 * u,
+            fontSize: 80 * u,
             fontWeight: 800,
             lineHeight: 1.05,
-            letterSpacing: -2 * u,
+            letterSpacing: -3 * u,
             background: `linear-gradient(100deg, ${C.accent} 0%, ${C.accent2} 70%)`,
             WebkitBackgroundClip: "text",
             WebkitTextFillColor: "transparent",
           }}
         >
-          v1.5.1 修复周
+          V1.5.1 更新周报
         </div>
 
         <div style={{ marginTop: 20 * u, fontSize: 23 * u, color: C.text, fontWeight: 600 }}>
