@@ -40,7 +40,7 @@ export const WeeklyCover: React.FC = () => {
 
       <div style={{ position: "absolute", left: marginX, top: height * 0.235, width: textW }}>
         <div style={{ fontFamily: MONO, fontSize: 19 * u, color: C.accent, letterSpacing: 5 * u }}>
-          WEEKLY UPDATE · 2026 W44
+          REAL TASK DEMO · 2026 W44
         </div>
         <div
           style={{
@@ -52,12 +52,24 @@ export const WeeklyCover: React.FC = () => {
             color: C.text,
           }}
         >
-          本周更新
+          用 DeepSeek 自动化
+        </div>
+        <div
+          style={{
+            marginTop: 8 * u,
+            fontSize: titleSize * 0.85,
+            fontWeight: 800,
+            letterSpacing: -4 * u,
+            lineHeight: 1.1,
+            color: C.accent,
+          }}
+        >
+          一个真实任务
         </div>
         <div style={{ marginTop: 20 * u, fontSize: 34 * u, color: "#B7C1D6", lineHeight: 1.4 }}>
-          输入链路与多任务
+          0成本 · 非反代 · 直接操作本地文件
           <br />
-          绑定收口
+          附完整复现步骤
         </div>
         <div style={{ marginTop: 26 * u, display: "flex", flexWrap: "wrap", gap: 12 * u }}>
           {["7 次提交", "9 项修复", "v1.5.1"].map((t) => (

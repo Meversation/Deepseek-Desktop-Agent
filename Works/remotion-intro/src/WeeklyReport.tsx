@@ -11,10 +11,13 @@ import {
 import { C, FONT, MONO } from "./theme";
 
 /**
- * W44 周报 · 36 秒快节奏版
- * 风格：M7 极简卡点 + M6 发布会运镜 + M34 条目盘点
- * 画面：只使用真实运行截图（public/report/app.png），不画概念 UI。
- * 事实来源：CHANGELOG v1.5.0 / v1.5.1 + MainForm / BrowserManager / SessionStore。
+ * W44 周报 · 改版 v2 · 实测向
+ * 
+ * 核心改造：从「功能盘点」→「真实任务演示」
+ * - 前3秒强钩子：直接展示任务目标
+ * - 每个章节 = 一个可复现的小任务
+ * - 强调收益（0成本、非反代、本地文件）
+ * - 结尾引导收藏/评论
  */
 
 const B = [0, 90, 270, 450, 630, 810, 1050, 1170]; // 120BPM，重拍切镜
@@ -35,12 +38,14 @@ const rise = (local: number, delay: number, dur = 18) => {
 const Scene: React.FC<{ index: number; children: React.ReactNode }> = ({ index, children }) => {
   const frame = useCurrentFrame();
   const start = B[index];
-  const end = B[index + 1];
+  const end = index < B.length - 1 ? B[index + 1] : TOTAL;
   const local = frame - start;
-  if (local < -2 || local > end - start + 2) return null;
+  const duration = end - start;
+  if (duration <= 0) return null;
+  if (local < -2 || local > duration + 2) return null;
   const enter = interpolate(local, [0, 5], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
-  const exit = interpolate(local, [end - start - 4, end - start], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
-  const zoom = interpolate(local, [0, end - start], [1.035, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  const exit = interpolate(local, [Math.max(duration - 4, 0), duration], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  const zoom = interpolate(local, [0, duration], [1.035, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
   return (
     <AbsoluteFill style={{ opacity: Math.min(enter, exit), transform: `scale(${zoom})` }}>{children}</AbsoluteFill>
   );
@@ -51,16 +56,16 @@ const Backdrop: React.FC = () => (
     <AbsoluteFill style={{ background: "#06080D" }} />
     <Img
       src={staticFile("report/app-bg.png")}
-      style={{ width: "100%", height: "100%", objectFit: "cover", opacity: 0.5 }}
+      style={{ width: "100%", height: "100%", objectFit: "cover", opacity: 0.4 }}
     />
     <AbsoluteFill
       style={{
-        background: "linear-gradient(115deg, transparent 34%, rgba(77,141,255,0.10) 50%, transparent 66%)",
+        background: "linear-gradient(115deg, transparent 34%, rgba(77,141,255,0.08) 50%, transparent 66%)",
       }}
     />
-    <AbsoluteFill style={{ background: "radial-gradient(1000px 700px at 18% 10%, rgba(35,62,120,0.55), transparent 70%)" }} />
-    <AbsoluteFill style={{ background: "radial-gradient(900px 620px at 92% 92%, rgba(77,141,255,0.16), transparent 70%)" }} />
-    <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(6,8,13,0.35) 0%, rgba(6,8,13,0.95) 100%)" }} />
+    <AbsoluteFill style={{ background: "radial-gradient(1000px 700px at 18% 10%, rgba(35,62,120,0.5), transparent 70%)" }} />
+    <AbsoluteFill style={{ background: "radial-gradient(900px 620px at 92% 92%, rgba(77,141,255,0.12), transparent 70%)" }} />
+    <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(6,8,13,0.3) 0%, rgba(6,8,13,0.92) 100%)" }} />
     <div
       style={{
         position: "absolute",
@@ -71,29 +76,642 @@ const Backdrop: React.FC = () => (
         fontWeight: 800,
         letterSpacing: -22,
         lineHeight: 1,
-        color: "rgba(255,255,255,0.035)",
+        color: "rgba(255,255,255,0.03)",
       }}
     >
-      W44
+      TASK
     </div>
   </>
 );
 
-const Header: React.FC<{ no: string; title: string; note: string; local: number }> = ({ no, title, note, local }) => (
-  <div style={{ position: "absolute", left: 110, top: 96 }}>
-    <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-      <span style={{ fontFamily: MONO, fontSize: 24, color: C.accent, letterSpacing: 2 }}>{no}</span>
-      <div style={{ width: 44, height: 2, background: C.accent, opacity: 0.7 }} />
-      <span style={{ fontFamily: MONO, fontSize: 16, color: C.subtle, letterSpacing: 4 }}>W44</span>
+/** 任务卡片：展示一个具体任务及其收益 */
+const TaskCard: React.FC<{
+  local: number;
+  step: string;
+  title: string;
+  subtitle: string;
+  benefit: string;
+}> = ({ local, step, title, subtitle, benefit }) => (
+  <div
+    style={{
+      padding: "32px 0",
+      borderBottom: `1px solid ${C.border}`,
+      ...rise(local, 18, 14),
+    }}
+  >
+    <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 8 }}>
+      <span
+        style={{
+          fontFamily: MONO,
+          fontSize: 16,
+          color: C.accent,
+          padding: "4px 12px",
+          borderRadius: 6,
+          border: `1px solid ${C.accent2}`,
+          background: "rgba(77,141,255,0.08)",
+        }}
+      >
+        {step}
+      </span>
+      <span style={{ fontSize: 36, fontWeight: 700, color: C.text }}>{title}</span>
     </div>
-    <div style={{ marginTop: 14, fontSize: 68, fontWeight: 800, letterSpacing: -1.5, color: C.text, ...rise(local, 10, 16) }}>
-      {title}
+    <div style={{ marginLeft: 0, marginTop: 4, fontSize: 22, color: C.subtle, paddingLeft: 0 }}>{subtitle}</div>
+    <div
+      style={{
+        marginTop: 14,
+        marginLeft: 0,
+        fontSize: 20,
+        color: C.ok,
+        fontFamily: MONO,
+      }}
+    >
+      ✓ {benefit}
     </div>
-    <div style={{ marginTop: 10, fontSize: 24, color: C.subtle, ...rise(local, 20, 16) }}>{note}</div>
   </div>
 );
 
-/** 真实界面 + 动态高亮框 */
+/** 任务演示场景 */
+const TaskDemo: React.FC<{
+  local: number;
+  task: string;
+  input: string;
+  result: string;
+  delay?: number;
+}> = ({ local, task, input, result, delay = 24 }) => {
+  const p = interpolate(local, [delay, delay + 40], [0, 1], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+    easing: Easing.out(Easing.cubic),
+  });
+  return (
+    <div
+      style={{
+        opacity: p,
+        transform: `translateY(${(1 - p) * 20}px)`,
+        padding: "28px 0",
+        borderBottom: `1px solid ${C.border}`,
+      }}
+    >
+      <div style={{ fontSize: 16, color: C.subtle, marginBottom: 10, fontFamily: MONO }}>
+        📋 任务：{task}
+      </div>
+      <div style={{ display: "flex", gap: 20, alignItems: "stretch" }}>
+        <div
+          style={{
+            flex: 1,
+            background: "rgba(255,255,255,0.04)",
+            border: `1px solid ${C.border}`,
+            borderRadius: 10,
+            padding: "16px 20px",
+          }}
+        >
+          <div style={{ fontSize: 14, color: C.subtle, marginBottom: 8, fontFamily: MONO }}>输入</div>
+          <div style={{ fontSize: 24, color: C.text }}>{input}</div>
+        </div>
+        <div style={{ fontSize: 28, color: C.accent, alignSelf: "center" }}>→</div>
+        <div
+          style={{
+            flex: 1,
+            background: "rgba(52,211,153,0.06)",
+            border: `1px solid rgba(52,211,153,0.3)`,
+            borderRadius: 10,
+            padding: "16px 20px",
+          }}
+        >
+          <div style={{ fontSize: 14, color: C.ok, marginBottom: 8, fontFamily: MONO }}>结果</div>
+          <div style={{ fontSize: 24, color: C.ok }}>{result}</div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const Hero: React.FC = () => {
+  const local = useCurrentFrame();
+  return (
+    <Scene index={0}>
+      {/* 强钩子开场：3秒内说清"你要获得什么" */}
+      <div
+        style={{
+          position: "absolute",
+          left: 110,
+          top: 200,
+          width: 780,
+        }}
+      >
+        {/* 标签：痛点关键词 */}
+        <div
+          style={{
+            display: "inline-flex",
+            gap: 12,
+            marginBottom: 20,
+            ...rise(local, 2, 10),
+          }}
+        >
+          {["0成本", "非反代", "本地文件", "免安装"].map((tag, i) => (
+            <span
+              key={tag}
+              style={{
+                padding: "6px 14px",
+                borderRadius: 6,
+                background: "rgba(77,141,255,0.12)",
+                border: `1px solid ${C.accent2}`,
+                fontFamily: MONO,
+                fontSize: 16,
+                color: C.accent,
+                opacity: interpolate(local, [4 + i * 3, 6 + i * 3], [0, 1], {
+                  extrapolateLeft: "clamp",
+                  extrapolateRight: "clamp",
+                }),
+              }}
+            >
+              {tag}
+            </span>
+          ))}
+        </div>
+
+        {/* 主标题：任务导向 */}
+        <div
+          style={{
+            fontSize: 80,
+            fontWeight: 800,
+            letterSpacing: -3,
+            lineHeight: 1.1,
+            color: C.text,
+            ...rise(local, 8, 14),
+          }}
+        >
+          用 DeepSeek 桌面 Agent
+        </div>
+        <div
+          style={{
+            fontSize: 96,
+            fontWeight: 800,
+            letterSpacing: -4,
+            lineHeight: 1.1,
+            color: C.accent,
+            marginTop: 4,
+            ...rise(local, 14, 14),
+          }}
+        >
+          自动化了一个真实任务
+        </div>
+
+        {/* 副标题：说明这是实测 */}
+        <div
+          style={{
+            marginTop: 24,
+            fontSize: 26,
+            color: C.subtle,
+            ...rise(local, 22, 12),
+          }}
+        >
+          40秒看完 v1.5.1 所有修复 · 附完整复现步骤
+        </div>
+
+        {/* 数据标签 */}
+        <div
+          style={{
+            marginTop: 28,
+            display: "flex",
+            gap: 16,
+            ...rise(local, 28, 12),
+          }}
+        >
+          {[
+            { num: "7", label: "次提交" },
+            { num: "9", label: "项修复" },
+            { num: "v1.5.1", label: "发布" },
+            { num: "0", label: "反代依赖" },
+          ].map(({ num, label }) => (
+            <span
+              key={label}
+              style={{
+                padding: "8px 18px",
+                borderRadius: 8,
+                border: `1px solid ${C.border}`,
+                background: "rgba(255,255,255,0.03)",
+              }}
+            >
+              <span style={{ fontSize: 28, fontWeight: 700, color: C.text }}>{num}</span>
+              <span style={{ marginLeft: 6, fontSize: 16, color: C.subtle }}>{label}</span>
+            </span>
+          ))}
+        </div>
+      </div>
+
+      {/* 右侧：应用截图预览 */}
+      <AppShot local={local} left={980} top={200} width={1020} delay={10} />
+    </Scene>
+  );
+};
+
+const Task1: React.FC = () => {
+  const local = useCurrentFrame() - B[1];
+  return (
+    <Scene index={1}>
+      <div style={{ position: "absolute", left: 110, top: 96 }}>
+        <span style={{ fontFamily: MONO, fontSize: 22, color: C.subtle }}>Task 01 — 会话绑定</span>
+        <div style={{ fontSize: 64, fontWeight: 800, letterSpacing: -2, color: C.text, ...rise(local, 8, 14) }}>
+          多任务不再串台
+        </div>
+        <div style={{ marginTop: 10, fontSize: 24, color: C.subtle, ...rise(local, 16, 12) }}>
+          同时管理多个会话，输出归位
+        </div>
+      </div>
+
+      <div style={{ position: "absolute", left: 110, top: 280, width: 820 }}>
+        <TaskDemo
+          local={local}
+          task="同时回复两个会话的提问"
+          input="同时发送两条消息到不同会话"
+          result="各自独立回答，不串台"
+          delay={20}
+        />
+        <TaskDemo
+          local={local}
+          task="队列消息按归属会话切回"
+          input="排队 3 条消息到会话 A"
+          result="自动切回 A，按顺序发送"
+          delay={60}
+        />
+      </div>
+
+      <AppShot
+        local={local}
+        left={980}
+        top={200}
+        width={1020}
+        delay={30}
+        focus={{ left: "0%", top: "0%", width: "22%", height: "100%" }}
+        focusLabel="会话绑定"
+      />
+    </Scene>
+  );
+};
+
+const Task2: React.FC = () => {
+  const local = useCurrentFrame() - B[2];
+  return (
+    <Scene index={2}>
+      <div style={{ position: "absolute", left: 110, top: 96 }}>
+        <span style={{ fontFamily: MONO, fontSize: 22, color: C.subtle }}>Task 02 — 输入修复</span>
+        <div style={{ fontSize: 64, fontWeight: 800, letterSpacing: -2, color: C.text, ...rise(local, 8, 14) }}>
+          输入不再卡住
+        </div>
+        <div style={{ marginTop: 10, fontSize: 24, color: C.subtle, ...rise(local, 16, 12) }}>
+          v1.5.1 重点修复，三级兜底方案
+        </div>
+      </div>
+
+      <div style={{ position: "absolute", left: 110, top: 280, width: 820 }}>
+        <TaskCard
+          local={local}
+          step="FIX 1"
+          title="三级兜底输入"
+          subtitle="textarea → contenteditable → role=textbox"
+          benefit="过滤不可见节点，确保粘贴内容干净"
+        />
+        <TaskCard
+          local={local}
+          step="FIX 2"
+          title="发送不再静默失败"
+          subtitle="按钮找不到立即报错并兜底回车"
+          benefit="让用户知道发生了什么，而不是卡住"
+        />
+        <TaskCard
+          local={local}
+          step="FIX 3"
+          title="Ctrl+Enter 按焦点分派"
+          subtitle="对话页发送，会话页接续"
+          benefit="符合直觉，不需要重新学习快捷键"
+        />
+      </div>
+
+      <AppShot
+        local={local}
+        left={980}
+        top={260}
+        width={1020}
+        delay={26}
+        focus={{ left: "24%", top: "80%", width: "74%", height: "16%" }}
+        focusLabel="输入卡片"
+      />
+    </Scene>
+  );
+};
+
+const Task3: React.FC = () => {
+  const local = useCurrentFrame() - B[3];
+  return (
+    <Scene index={3}>
+      <div style={{ position: "absolute", left: 110, top: 96 }}>
+        <span style={{ fontFamily: MONO, fontSize: 22, color: C.subtle }}>Task 03 — 附件顺序</span>
+        <div style={{ fontSize: 64, fontWeight: 800, letterSpacing: -2, color: C.text, ...rise(local, 8, 14) }}>
+          先确认输入可用，再上传
+        </div>
+        <div style={{ marginTop: 10, fontSize: 24, color: C.subtle, ...rise(local, 16, 12) }}>
+          修复附件在输入框不可用时无响应的边界问题
+        </div>
+      </div>
+
+      <div style={{ position: "absolute", left: 110, top: 280, width: 760 }}>
+        {[
+          { action: "用户点击附件", step: "1", color: C.text },
+          { action: "系统检查输入框状态", step: "2", color: C.subtle },
+          { action: "输入框可用 → 显示附件预览", step: "3", color: C.ok },
+          { action: "输入框不可用 → 提示用户激活", step: "3b", color: C.warn },
+        ].map(({ action, step, color }, i) => (
+          <div
+            key={step}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 20,
+              padding: "22px 0",
+              borderBottom: i < 3 ? `1px solid ${C.border}` : "none",
+              ...rise(local, 18 + i * 12, 12),
+            }}
+          >
+            <span
+              style={{
+                fontFamily: MONO,
+                fontSize: 18,
+                color: C.accent,
+                width: 40,
+                textAlign: "center",
+              }}
+            >
+              {step}
+            </span>
+            <span style={{ fontSize: 26, color }}>{action}</span>
+          </div>
+        ))}
+      </div>
+
+      <AppShot
+        local={local}
+        left={980}
+        top={240}
+        width={1020}
+        delay={28}
+        focus={{ left: "24%", top: "76%", width: "74%", height: "20%" }}
+        focusLabel="附件区域"
+      />
+    </Scene>
+  );
+};
+
+const Task4: React.FC = () => {
+  const local = useCurrentFrame() - B[4];
+  return (
+    <Scene index={4}>
+      <div style={{ position: "absolute", left: 110, top: 96 }}>
+        <span style={{ fontFamily: MONO, fontSize: 22, color: C.subtle }}>Task 04 — 紧急停止</span>
+        <div style={{ fontSize: 64, fontWeight: 800, letterSpacing: -2, color: C.text, ...rise(local, 8, 14) }}>
+          红色急停，保留后续队列
+        </div>
+        <div style={{ marginTop: 10, fontSize: 24, color: C.subtle, ...rise(local, 16, 12) }}>
+          中断当前 PowerShell 任务，已排队消息不丢失
+        </div>
+      </div>
+
+      <div style={{ position: "absolute", left: 110, top: 280, width: 800 }}>
+        <TaskDemo
+          local={local}
+          task="Agent 执行卡死"
+          input="点击红色 ■ 急停按钮"
+          result="PowerShell 终止，队列保留"
+          delay={22}
+        />
+        <div
+          style={{
+            marginTop: 24,
+            padding: "20px 24px",
+            background: "rgba(251,191,36,0.06)",
+            border: `1px solid rgba(251,191,36,0.3)`,
+            borderRadius: 10,
+            fontSize: 24,
+            color: C.warn,
+            ...rise(local, 50),
+          }}
+        >
+          💡 提示：急停后手动检查会话状态，再继续
+        </div>
+      </div>
+
+      <div
+        style={{
+          position: "absolute",
+          right: 110,
+          top: 280,
+          padding: "28px 32px",
+          background: "rgba(248,113,113,0.06)",
+          border: `1px solid rgba(248,113,113,0.3)`,
+          borderRadius: 12,
+          maxWidth: 680,
+          ...rise(local, 60),
+        }}
+      >
+        <div style={{ fontSize: 18, color: C.warn, fontFamily: MONO, marginBottom: 10 }}>紧急停止逻辑</div>
+        <div style={{ fontSize: 28, color: C.text, lineHeight: 1.5 }}>
+          终止当前任务 → 清理 PowerShell 进程 → 保留队列状态 → 提示用户检查
+        </div>
+      </div>
+    </Scene>
+  );
+};
+
+const Task5: React.FC = () => {
+  const local = useCurrentFrame() - B[5];
+  return (
+    <Scene index={5}>
+      <div style={{ position: "absolute", left: 110, top: 96 }}>
+        <span style={{ fontFamily: MONO, fontSize: 22, color: C.subtle }}>Task 05 — 待验证</span>
+        <div style={{ fontSize: 64, fontWeight: 800, letterSpacing: -2, color: C.text, ...rise(local, 8, 14) }}>
+          需要真实场景验证
+        </div>
+        <div style={{ marginTop: 10, fontSize: 24, color: C.subtle, ...rise(local, 16, 12) }}>
+          输入链路与多会话的边界状态，下周连续跑测
+        </div>
+      </div>
+
+      <div style={{ position: "absolute", left: 110, top: 280, width: 1700 }}>
+        {[
+          { status: "待验证", text: "输入框与 watchdog 仍有边界状态需连续跑测", color: C.warn },
+          { status: "待验证", text: "多会话与队列刚修复，缺少长时间稳定性验证", color: C.warn },
+          { status: "待验证", text: "网页关闭后的恢复路径还需更多真机场景", color: C.warn },
+        ].map(({ status, text, color }, i) => (
+          <div
+            key={text}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 24,
+              padding: "26px 0",
+              borderBottom: i < 2 ? `1px solid ${C.border}` : "none",
+              ...rise(local, 16 + i * 14, 14),
+            }}
+          >
+            <span
+              style={{
+                padding: "6px 14px",
+                borderRadius: 6,
+                background: "rgba(251,191,36,0.08)",
+                border: `1px solid rgba(251,191,36,0.4)`,
+                fontSize: 16,
+                color,
+                fontFamily: MONO,
+                minWidth: 100,
+                textAlign: "center",
+              }}
+            >
+              {status}
+            </span>
+            <span style={{ fontSize: 26, color: C.text }}>{text}</span>
+          </div>
+        ))}
+      </div>
+    </Scene>
+  );
+};
+
+const Task6: React.FC = () => {
+  const local = useCurrentFrame() - B[6];
+  return (
+    <Scene index={6}>
+      <div style={{ position: "absolute", left: 110, top: 200, width: 820 }}>
+        <div style={{ fontFamily: MONO, fontSize: 20, color: C.accent, letterSpacing: 4, ...rise(local, 6, 10) }}>
+          NEXT · W45
+        </div>
+        <div style={{ fontSize: 100, fontWeight: 800, letterSpacing: -4, color: C.text, ...rise(local, 10, 14) }}>
+          连续跑测
+        </div>
+        <div style={{ marginTop: 16, fontSize: 26, color: C.subtle, ...rise(local, 18, 12) }}>
+          下一周重点：多会话、队列、重启恢复的稳定性验证
+        </div>
+
+        <div style={{ marginTop: 40, ...rise(local, 30, 14) }}>
+          {[
+            "连续跑测：多会话、队列、重启恢复",
+            "详情页补充运行状态与诊断信息",
+            "宣传片投放，回收首轮数据",
+          ].map((t, i) => (
+            <div
+              key={t}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 18,
+                padding: "18px 0",
+                borderBottom: i < 2 ? `1px solid ${C.border}` : "none",
+                fontSize: 26,
+                color: C.text,
+              }}
+            >
+              <span style={{ fontFamily: MONO, fontSize: 16, color: C.accent }}>
+                {String(i + 1).padStart(2, "0")}
+              </span>
+              {t}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div
+        style={{
+          position: "absolute",
+          right: 110,
+          top: 200,
+          padding: "32px 36px",
+          background: "rgba(77,141,255,0.06)",
+          border: `1px solid rgba(77,141,255,0.3)`,
+          borderRadius: 14,
+          maxWidth: 640,
+          ...rise(local, 40, 14),
+        }}
+      >
+        <div style={{ fontSize: 18, color: C.accent, fontFamily: MONO, marginBottom: 12 }}>本周结论</div>
+        <div style={{ fontSize: 30, color: C.text, lineHeight: 1.5 }}>
+          输入链路与多任务绑定已收口，
+          <br />
+          <span style={{ color: C.ok }}>v1.5.1 可正常试用</span>
+        </div>
+      </div>
+    </Scene>
+  );
+};
+
+const Outro: React.FC = () => {
+  const local = useCurrentFrame() - B[7];
+  return (
+    <Scene index={7}>
+      <div style={{ position: "absolute", left: 110, top: 300 }}>
+        <div style={{ fontFamily: MONO, fontSize: 20, color: C.accent, letterSpacing: 5, ...rise(local, 6, 10) }}>
+          W44 · 2026 · 完整改版
+        </div>
+        <div style={{ marginTop: 16, fontSize: 110, fontWeight: 800, letterSpacing: -5, color: C.text, ...rise(local, 12, 14) }}>
+          下周见
+        </div>
+        <div style={{ marginTop: 14, fontSize: 26, color: C.subtle, ...rise(local, 22) }}>
+          全部改动都在真实界面里跑过，你能复现
+        </div>
+      </div>
+
+      {/* CTA 区域 */}
+      <div
+        style={{
+          position: "absolute",
+          left: 110,
+          top: 600,
+          display: "flex",
+          gap: 20,
+          ...rise(local, 36),
+        }}
+      >
+        <div
+          style={{
+            padding: "14px 28px",
+            background: "rgba(77,141,255,0.1)",
+            border: `1px solid ${C.accent2}`,
+            borderRadius: 10,
+            fontSize: 22,
+            color: C.text,
+          }}
+        >
+          💾 收藏视频 · 获取复现步骤
+        </div>
+        <div
+          style={{
+            padding: "14px 28px",
+            background: "rgba(52,211,153,0.08)",
+            border: `1px solid rgba(52,211,153,0.4)`,
+            borderRadius: 10,
+            fontSize: 22,
+            color: C.ok,
+          }}
+        >
+          💬 留言 · 反馈你的使用场景
+        </div>
+      </div>
+
+      <div
+        style={{
+          position: "absolute",
+          right: 110,
+          bottom: 110,
+          fontFamily: MONO,
+          fontSize: 18,
+          color: C.subtle,
+          ...rise(local, 48),
+        }}
+      >
+        github.com/Meversation/Deepseek-Desktop-Agent
+      </div>
+    </Scene>
+  );
+};
+
 const AppShot: React.FC<{
   local: number;
   left: number;
@@ -166,325 +784,16 @@ const AppShot: React.FC<{
   );
 };
 
-const Hero: React.FC = () => {
-  const local = useCurrentFrame();
-  return (
-    <Scene index={0}>
-      <div style={{ position: "absolute", left: 110, top: 260, width: 720 }}>
-        <div style={{ fontFamily: MONO, fontSize: 20, color: C.accent, letterSpacing: 5, ...rise(local, 2, 10) }}>
-          2026 · W44 · 10.25—10.31
-        </div>
-        <div style={{ marginTop: 16, fontSize: 150, fontWeight: 800, letterSpacing: -5, lineHeight: 1, color: C.text, ...rise(local, 6, 14) }}>
-          本周更新
-        </div>
-        <div style={{ marginTop: 18, display: "flex", gap: 16, ...rise(local, 12, 12) }}>
-          {["7 次提交", "9 项修复", "v1.5.1"].map((t) => (
-            <span
-              key={t}
-              style={{
-                padding: "9px 16px",
-                borderRadius: 999,
-                border: `1px solid ${C.border}`,
-                background: "rgba(255,255,255,0.04)",
-                fontSize: 20,
-                color: C.text,
-              }}
-            >
-              {t}
-            </span>
-          ))}
-        </div>
-        <div style={{ marginTop: 16, fontSize: 22, color: C.subtle, ...rise(local, 18, 12) }}>
-          全部用真实运行界面，不讲概念稿
-        </div>
-      </div>
-
-      <AppShot local={local} left={840} top={260} width={1040} delay={6} />
-    </Scene>
-  );
-};
-
-const Sidebar: React.FC = () => {
-  const local = useCurrentFrame() - B[1];
-  return (
-    <Scene index={1}>
-      <Header no="01" title="侧栏与会话" note="会话按项目归档，点开即恢复对应网页会话" local={local} />
-      <div style={{ position: "absolute", left: 110, top: 380, width: 560 }}>
-        {[
-          ["会话列表", "按项目分组，显示时间与轮次"],
-          ["搜索会话", "输入关键词直接过滤"],
-          ["技能目录", "优先加载本机技能文件"],
-          ["详情 / 设置 / PowerShell", "运行状态与工具入口"],
-        ].map(([k, v], i) => (
-          <div
-            key={k}
-            style={{
-              padding: "24px 0",
-              borderBottom: `1px solid ${C.border}`,
-              ...rise(local, 22 + i * 14, 14),
-            }}
-          >
-            <div style={{ fontSize: 29, fontWeight: 700, color: C.text }}>{k}</div>
-            <div style={{ marginTop: 6, fontSize: 19, color: C.subtle }}>{v}</div>
-          </div>
-        ))}
-      </div>
-
-      <AppShot
-        local={local}
-        left={720}
-        top={210}
-        width={1160}
-        delay={30}
-        focus={{ left: "0%", top: "0%", width: "22%", height: "100%" }}
-        focusLabel="左栏：会话 / 技能"
-      />
-    </Scene>
-  );
-};
-
-const HiddenWeb: React.FC = () => {
-  const local = useCurrentFrame() - B[2];
-  return (
-    <Scene index={2}>
-      <Header no="02" title="网页后台隐藏" note="默认后台运行，需要时才显示" local={local} />
-      <div style={{ position: "absolute", left: 110, top: 420, width: 620 }}>
-        {[
-          ["默认隐藏", "DeepSeek 网页在后台运行，不抢焦点"],
-          ["显示网页会话", "点开才以独立窗口弹出"],
-          ["watchdog 守护", "窗口被关闭后自动恢复连接"],
-        ].map(([k, v], i) => (
-          <div key={k} style={{ marginBottom: 26, ...rise(local, 24 + i * 16, 14) }}>
-            <div style={{ fontSize: 28, fontWeight: 700, color: C.text }}>{k}</div>
-            <div style={{ marginTop: 6, fontSize: 19, color: C.subtle }}>{v}</div>
-          </div>
-        ))}
-      </div>
-
-      <AppShot
-        local={local}
-        left={760}
-        top={240}
-        width={1060}
-        delay={26}
-        focus={{ left: "24%", top: "6%", width: "74%", height: "70%" }}
-        focusLabel="真实网页会话区域"
-      />
-    </Scene>
-  );
-};
-
-const InputFixes: React.FC = () => {
-  const local = useCurrentFrame() - B[3];
-  return (
-    <Scene index={3}>
-      <Header no="03" title="输入不再卡住" note="v1.5.1 的重点修复" local={local} />
-      <div style={{ position: "absolute", left: 110, top: 400, width: 760 }}>
-        {[
-          ["三级兜底", "textarea → contenteditable → role=textbox，过滤不可见节点"],
-          ["发送不再静默", "按钮找不到就立即报错并兜底回车"],
-          ["附件顺序", "先确认输入可用，再上传附件"],
-          ["Ctrl+Enter", "按焦点分派：对话页发送，会话页接续"],
-        ].map(([k, v], i) => (
-          <div
-            key={k}
-            style={{
-              display: "flex",
-              gap: 18,
-              alignItems: "baseline",
-              padding: "16px 0",
-              borderBottom: `1px solid ${C.border}`,
-              ...rise(local, 20 + i * 14, 14),
-            }}
-          >
-            <span style={{ fontFamily: MONO, fontSize: 15, color: C.accent, minWidth: 110 }}>{k}</span>
-            <span style={{ fontSize: 22, color: C.text }}>{v}</span>
-          </div>
-        ))}
-      </div>
-
-      <AppShot
-        local={local}
-        left={880}
-        top={400}
-        width={960}
-        delay={24}
-        focus={{ left: "24%", top: "80%", width: "74%", height: "16%" }}
-        focusLabel="输入卡片"
-      />
-    </Scene>
-  );
-};
-
-const MultiTask: React.FC = () => {
-  const local = useCurrentFrame() - B[4];
-  const rows = [
-    ["会话绑定", "每轮流式输出写回发起时的会话，不再串台"],
-    ["队列切页", "排队消息按归属会话切回对应网页再执行"],
-    ["红色急停", "中断当前 PowerShell 任务，保留后续消息"],
-  ];
-  return (
-    <Scene index={4}>
-      <Header no="04" title="多任务不再串台" note="会话、队列、急停三处收口" local={local} />
-      <div style={{ position: "absolute", left: 110, top: 400, width: 1700 }}>
-        {rows.map(([k, v], i) => (
-          <div
-            key={k}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 30,
-              padding: "36px 30px",
-              marginBottom: 18,
-              borderRadius: 14,
-              background: "rgba(255,255,255,0.035)",
-              border: `1px solid ${C.border}`,
-              ...rise(local, 16 + i * 16, 14),
-            }}
-          >
-            <span
-              style={{
-                fontFamily: MONO,
-                fontSize: 14,
-                letterSpacing: 2,
-                color: i === 2 ? "#F87171" : C.accent,
-                padding: "7px 12px",
-                borderRadius: 8,
-                border: `1px solid ${i === 2 ? "rgba(248,113,113,0.5)" : C.accent2}`,
-                minWidth: 96,
-                textAlign: "center",
-              }}
-            >
-              {k}
-            </span>
-            <span style={{ fontSize: 28, color: C.text }}>{v}</span>
-          </div>
-        ))}
-      </div>
-
-      <div
-        style={{
-          position: "absolute",
-          left: 110,
-          top: 900,
-          fontFamily: MONO,
-          fontSize: 18,
-          letterSpacing: 1,
-          color: C.subtle,
-          ...rise(local, 60),
-        }}
-      >
-        以上修复均已进入 v1.5.1，下一轮用连续跑测确认边界状态
-      </div>
-    </Scene>
-  );
-};
-
-const Retro: React.FC = () => {
-  const local = useCurrentFrame() - B[5];
-  return (
-    <Scene index={5}>
-      <Header no="05" title="复盘与下周" note="问题不回避，下周按优先级收口" local={local} />
-      <div style={{ position: "absolute", left: 110, top: 420, width: 760 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12, ...rise(local, 14) }}>
-          <span style={{ width: 9, height: 9, borderRadius: 5, background: "#FBBF24" }} />
-          <span style={{ fontFamily: MONO, fontSize: 16, letterSpacing: 4, color: "#FBBF24" }}>ISSUES</span>
-        </div>
-        {[
-          "输入框与 watchdog 仍有边界状态需要连续跑测",
-          "多会话与队列刚修复，缺少长时间稳定性验证",
-          "网页关闭后的恢复路径还需更多真机场景",
-        ].map((t, i) => (
-          <div
-            key={t}
-            style={{ padding: "24px 0", borderBottom: `1px solid ${C.border}`, fontSize: 27, color: C.text, ...rise(local, 22 + i * 18, 14) }}
-          >
-            <span style={{ color: "#FBBF24", marginRight: 14, fontFamily: MONO, fontSize: 14 }}>!</span>
-            {t}
-          </div>
-        ))}
-      </div>
-
-      <div style={{ position: "absolute", left: 960, top: 420, width: 780 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12, ...rise(local, 18) }}>
-          <span style={{ width: 9, height: 9, borderRadius: 5, background: C.accent }} />
-          <span style={{ fontFamily: MONO, fontSize: 16, letterSpacing: 4, color: C.accent }}>NEXT</span>
-        </div>
-        {["连续跑测：多会话、队列、重启恢复", "详情页补充运行状态与诊断信息", "宣传片投放，回收首轮数据"].map((t, i) => (
-          <div
-            key={t}
-            style={{
-              display: "flex",
-              gap: 18,
-              alignItems: "center",
-              padding: "24px 0",
-              borderBottom: `1px solid ${C.border}`,
-              fontSize: 27,
-              color: C.text,
-              ...rise(local, 30 + i * 16, 14),
-            }}
-          >
-            <span style={{ fontFamily: MONO, fontSize: 14, color: C.accent }}>0{i + 1}</span>
-            {t}
-          </div>
-        ))}
-      </div>
-
-      <div
-        style={{
-          position: "absolute",
-          left: 110,
-          top: 900,
-          fontFamily: MONO,
-          fontSize: 18,
-          letterSpacing: 1,
-          color: C.accent,
-          ...rise(local, 60),
-        }}
-      >
-        本周主线：输入链路与多任务绑定收口，v1.5.1 已发布
-      </div>
-    </Scene>
-  );
-};
-
-const Outro: React.FC = () => {
-  const local = useCurrentFrame() - B[6];
-  return (
-    <Scene index={6}>
-      <div style={{ position: "absolute", left: 110, top: 430 }}>
-        <div style={{ fontFamily: MONO, fontSize: 18, color: C.accent, letterSpacing: 5, ...rise(local, 6) }}>W44 · 2026</div>
-        <div style={{ marginTop: 16, fontSize: 120, fontWeight: 800, letterSpacing: -4, color: C.text, ...rise(local, 12, 16) }}>
-          下周见
-        </div>
-        <div style={{ marginTop: 12, fontSize: 24, color: C.subtle, ...rise(local, 22) }}>全部改动都在真实界面里跑过</div>
-      </div>
-      <div
-        style={{
-          position: "absolute",
-          right: 110,
-          bottom: 110,
-          fontFamily: MONO,
-          fontSize: 16,
-          color: C.subtle,
-          ...rise(local, 30),
-        }}
-      >
-        github.com/Meversation/Deepseek-Desktop-Agent
-      </div>
-    </Scene>
-  );
-};
-
 export const WeeklyReport: React.FC = () => (
   <AbsoluteFill style={{ backgroundColor: "#06080D", fontFamily: FONT }}>
     <Backdrop />
     <Hero />
-    <Sidebar />
-    <HiddenWeb />
-    <InputFixes />
-    <MultiTask />
-    <Retro />
+    <Task1 />
+    <Task2 />
+    <Task3 />
+    <Task4 />
+    <Task5 />
+    <Task6 />
     <Outro />
     <Audio
       src={staticFile("music/techno-120.mp3")}
