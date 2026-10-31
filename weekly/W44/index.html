@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>本周更新 W44 · Deepseek Desktop Agent</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:#06080d;color:#eef1f7;font:16px/1.75 -apple-system,"Segoe UI","Microsoft YaHei",system-ui,sans-serif;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+body::before{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;background:radial-gradient(900px 620px at 12% -12%,rgba(35,62,120,.55),transparent 62%),radial-gradient(760px 520px at 96% 4%,rgba(77,141,255,.22),transparent 60%),radial-gradient(900px 700px at 50% 112%,rgba(77,141,255,.10),transparent 60%)}
+.container{max-width:1120px;margin:0 auto;padding:0 26px;position:relative;z-index:1}
+.nav{position:fixed;top:0;left:0;right:0;z-index:20;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 26px;backdrop-filter:blur(14px);background:rgba(6,8,13,.55);border-bottom:1px solid rgba(255,255,255,.08)}
+.nav b{font-size:13px;letter-spacing:.18em;white-space:nowrap}
+.nav a{color:#8b93a7;text-decoration:none;font-size:13.5px;letter-spacing:.04em;transition:.2s}
+.nav a:hover{color:#fff}
+.hero{padding:158px 0 84px;position:relative;z-index:1}
+.eyebrow{font:12.5px/1 ui-monospace,Consolas,monospace;letter-spacing:.28em;text-transform:uppercase;color:#6f7a92;margin-bottom:26px}
+h1{font-size:clamp(44px,8vw,104px);line-height:.94;letter-spacing:-.04em;font-weight:800;background:linear-gradient(180deg,#fff 12%,#8fa6d8 62%,#4d8dff 130%);-webkit-background-clip:text;background-clip:text;color:transparent}
+.sub{margin-top:22px;max-width:760px;color:#a4adc2;font-size:clamp(15px,1.6vw,18px)}
+.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;margin-top:56px;max-width:760px}
+.stat{border:1px solid rgba(255,255,255,.1);border-radius:18px;padding:22px 24px;background:rgba(255,255,255,.035)}
+.stat b{display:block;font-size:clamp(38px,5vw,58px);line-height:1;letter-spacing:-.04em}
+.stat span{display:block;margin-top:10px;color:#8b93a7;font-size:13.5px;letter-spacing:.08em}
+.sec{position:relative;z-index:1;padding:76px 0;border-top:1px solid rgba(255,255,255,.08)}
+.num{font:12px/1 ui-monospace,Consolas,monospace;letter-spacing:.3em;color:#4d8dff}
+h2{font-size:clamp(28px,4.4vw,50px);line-height:1.06;letter-spacing:-.03em;font-weight:750;margin:14px 0 18px}
+.lead{color:#a4adc2;max-width:760px;margin-bottom:28px}
+ul{list-style:none}
+ul li{position:relative;padding-left:26px;margin-bottom:12px;color:#b6bed1}
+ul li::before{content:"";position:absolute;left:2px;top:.72em;width:8px;height:8px;border-radius:50%;background:#4d8dff;box-shadow:0 0 14px rgba(77,141,255,.9)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin-top:26px}
+.chip{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:20px 22px}
+.chip h3{margin:0 0 8px;font-size:16.5px;color:#fff}
+.chip p{margin:0;font-size:14px;color:#9aa3b8}
+.chip ul{margin-top:12px}
+.chip li{font-size:14px;padding-left:20px;margin-bottom:9px}
+.chip.warn{border-left:3px solid #fbbf24}
+.chip.warn li::before{background:#fbbf24;box-shadow:0 0 14px rgba(251,191,36,.65)}
+.figure{margin-top:28px;border:1px solid rgba(255,255,255,.1);border-radius:18px;overflow:hidden;background:#0b0d13}
+.figure img{display:block;width:100%;height:auto}
+.figure p{padding:12px 16px;font-size:13px;color:#7d8799;border-top:1px solid rgba(255,255,255,.06)}
+.video{margin-top:30px;border:1px solid rgba(255,255,255,.1);border-radius:18px;overflow:hidden;background:#0b0d13}
+.video video{display:block;width:100%;height:auto}
+.muted{margin-top:20px;font-family:ui-monospace,Consolas,monospace;font-size:13px;color:#6f7a92}
+.note{margin-top:22px;padding:18px 22px;border:1px solid rgba(77,141,255,.28);border-radius:14px;background:rgba(77,141,255,.08);color:#cfd8ea;font-size:14px}
+footer{position:relative;z-index:1;border-top:1px solid rgba(255,255,255,.08);padding:52px 0 70px;color:#5f6a82;font-size:13.5px}
+footer a{color:#7ea6ff}
+.reveal{opacity:0;transform:translateY(26px);transition:opacity .7s cubic-bezier(.2,.7,.3,1),transform .7s cubic-bezier(.2,.7,.3,1)}
+.reveal.in{opacity:1;transform:none}
+@media (prefers-reduced-motion:reduce){.reveal{opacity:1;transform:none;transition:none}}
+@media (max-width:760px){
+.container{padding:0 18px}
+.hero{padding:120px 0 56px}
+.stats{grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:36px}
+.stat{padding:16px 12px}
+.stat span{font-size:11.5px}
+.sec{padding:56px 0}
+}
+</style>
+</head>
+<body>
+<header class="nav">
+  <b>DEEPSEEK DESKTOP AGENT</b>
+  <a href="../../">返回首页</a>
+</header>
+
+<main>
+  <section class="container hero reveal">
+    <p class="eyebrow">Weekly Update · 2026 W44 · 10.25 — 10.31</p>
+    <h1>本周更新</h1>
+    <p class="sub">侧栏与会话落地，DeepSeek 网页默认后台隐藏，v1.5.1 修掉输入卡住、发送静默与多任务串台。下面的界面都来自真实运行，不是概念稿。</p>
+    <div class="stats">
+      <div class="stat"><b>7</b><span>次提交</span></div>
+      <div class="stat"><b>9</b><span>项修复</span></div>
+      <div class="stat"><b>1</b><span>个版本发布</span></div>
+    </div>
+  </section>
+
+  <section class="sec" id="sidebar">
+    <div class="container reveal">
+      <p class="num">01</p>
+      <h2>侧栏与会话</h2>
+      <p class="lead">会话按项目归档，点开即按会话切回对应的 DeepSeek 网页，不再重开新对话。</p>
+      <div class="figure">
+        <img src="assets/app.png" alt="Deepseek-Desktop-Agent 真实运行界面">
+        <p>真实运行界面 · v1.5.1 · 本地实拍</p>
+      </div>
+      <ul>
+        <li>会话列表按项目分组，显示时间与轮次</li>
+        <li>搜索会话直接过滤，技能目录优先加载本机技能</li>
+        <li>详情 / 设置 / PowerShell 收在左下角</li>
+        <li>旧会话缺少网页地址时，自动重新注入系统提示词与技能</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="sec" id="web">
+    <div class="container reveal">
+      <p class="num">02</p>
+      <h2>网页后台隐藏</h2>
+      <p class="lead">DeepSeek 网页默认在后台运行，需要时才显示，窗口被关掉也能自动恢复。</p>
+      <ul>
+        <li>默认隐藏，不抢焦点；点「显示网页会话」才以独立窗口弹出</li>
+        <li>watchdog 每 500ms 刷新运行状态，窗口被关闭后自动恢复连接</li>
+        <li>详情页明确显示：未启动 / 启动中 / 恢复中 / 后台隐藏 / 窗口已显示 / 调试连接断开</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="sec" id="input">
+    <div class="container reveal">
+      <p class="num">03</p>
+      <h2>输入不再卡住</h2>
+      <p class="lead">v1.5.1 把输入、发送、附件、快捷键四条路径逐一兜底。</p>
+      <div class="grid">
+        <div class="chip"><h3>三级兜底</h3><p>textarea → contenteditable → role=textbox，过滤不可见节点，并带诊断信息。</p></div>
+        <div class="chip"><h3>发送不再静默</h3><p>回车送不出去就改按按钮，按钮也找不到则立即报错并兜底回车。</p></div>
+        <div class="chip"><h3>附件顺序</h3><p>先确认输入框可用，再上传附件，避免传完才发现不能输入。</p></div>
+        <div class="chip"><h3>Ctrl+Enter</h3><p>按焦点分派：对话页发送消息，会话页接续会话，其他控件不误触。</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" id="multitask">
+    <div class="container reveal">
+      <p class="num">04</p>
+      <h2>多任务不再串台</h2>
+      <p class="lead">每轮运行绑定发起时的会话，切走浏览也不会把结果写进当前窗口。</p>
+      <ul>
+        <li>流式输出、滚动与最终结果写回发起会话</li>
+        <li>排队消息绑定会话与工作目录，按顺序切回对应网页执行</li>
+        <li>红色急停中断当前 PowerShell 任务，后续消息仍保留在队列</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="sec" id="review">
+    <div class="container reveal">
+      <p class="num">05</p>
+      <h2>复盘与下周</h2>
+      <p class="lead">问题不回避，下周按优先级收口。</p>
+      <div class="grid">
+        <div class="chip warn">
+          <h3>本周问题</h3>
+          <ul>
+            <li>输入框与 watchdog 仍有边界状态需要连续跑测</li>
+            <li>多会话与队列刚修复，缺少长时间稳定性验证</li>
+            <li>网页关闭后的恢复路径还需更多真机场景</li>
+          </ul>
+        </div>
+        <div class="chip">
+          <h3>下周计划</h3>
+          <ul>
+            <li>连续跑测：多会话、队列、重启恢复</li>
+            <li>详情页补充运行状态与诊断信息</li>
+            <li>宣传片投放，回收首轮数据</li>
+          </ul>
+        </div>
+      </div>
+      <div class="video">
+        <video controls preload="metadata" src="assets/weekly-report-w44.mp4"></video>
+      </div>
+      <div class="note">视频版周报：39 秒，1920 × 1080。画面使用真实运行截图，未使用概念界面。</div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="container">
+    本周更新 W44 · Deepseek Desktop Agent ·
+    <a href="https://github.com/Meversation/Deepseek-Desktop-Agent/">Meversation/Deepseek-Desktop-Agent</a>
+  </div>
+</footer>
+
+<script>
+(function () {
+  var items = document.querySelectorAll(".reveal");
+  if ("IntersectionObserver" in window) {
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (entry.isIntersecting) { entry.target.classList.add("in"); io.unobserve(entry.target); }
+      });
+    }, { threshold: 0.12 });
+    items.forEach(function (el) { io.observe(el); });
+  } else {
+    items.forEach(function (el) { el.classList.add("in"); });
+  }
+})();
+</script>
+</body>
+</html>
