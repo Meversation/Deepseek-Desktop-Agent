@@ -1,4 +1,4 @@
-# 构建产物
+# 编译产物
 [Bb]in/
 [Oo]bj/
 [Pp]ublish/
@@ -11,11 +11,25 @@ Thumbs.db
 .DS_Store
 desktop.ini
 
-# 本地文档
+# 临时文件
 TODO.md
-
-# 临时备份
 *.bak*
-
-# 运行日志
 *.log
+check.ps1
+
+# Remotion 渲染输出（仅保留最终交付文件）
+Works/remotion-intro/out/verify/
+Works/remotion-intro/out/chk-*.png
+Works/remotion-intro/out/w-*.png
+Works/remotion-intro/out/check-*.png
+Works/remotion-intro/out/preview-*.png
+Works/remotion-intro/out/ui-*.png
+Works/remotion-intro/out/deepseek-agent-intro*.mp4
+Works/remotion-intro/out/DeepseekIntro.mp4
+Works/remotion-intro/out/bilibili-*.png
+Works/remotion-intro/out/bilibili-*.html
+Works/remotion-intro/out/cover-icon.png
+Works/remotion-intro/out/qq-group-avatar.png
+Works/remotion-intro/out/watch-render.ps1
+Works/remotion-intro/out/weekly-*.png
+Works/remotion-intro/out/weekly-report-w44.mp4

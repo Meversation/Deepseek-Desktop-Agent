@@ -1,2 +1,4 @@
 node_modules/
 out/
+!out/report-weekly-v2.mp4
+!out/report-weekly-cover-v2.png
