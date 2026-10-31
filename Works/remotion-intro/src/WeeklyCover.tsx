@@ -40,7 +40,7 @@ export const WeeklyCover: React.FC = () => {
 
       <div style={{ position: "absolute", left: marginX, top: height * 0.235, width: textW }}>
         <div style={{ fontFamily: MONO, fontSize: 19 * u, color: C.accent, letterSpacing: 5 * u }}>
-          更新日志 · 2026 W44
+          更新日志 · 2026 W44 · 10.25—10.31
         </div>
         <div
           style={{
@@ -67,9 +67,7 @@ export const WeeklyCover: React.FC = () => {
           变成本地Agent
         </div>
         <div style={{ marginTop: 20 * u, fontSize: 34 * u, color: "#B7C1D6", lineHeight: 1.4 }}>
-          本周更新：多任务不再串台 · 输入三级兜底 · 附件边界修复 · 紧急停止保留队列
-          <br />
-          全部改动已在真实界面跑通
+          本周 9 项修复：多任务不再串台 · 输入三级兜底 · 附件边界修复
         </div>
         <div style={{ marginTop: 26 * u, display: "flex", flexWrap: "wrap", gap: 12 * u }}>
           {["7 次提交", "9 项修复", "v1.5.1"].map((t) => (
