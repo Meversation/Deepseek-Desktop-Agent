@@ -2,7 +2,6 @@
 
 用 C# 重写的 Windows 桌面 Agent。基于 DeepSeek 网页版，通过 CDP 自动化操控浏览器，让 DeepSeek 能够读写文件、执行 PowerShell、截图、控制鼠标键盘和访问网络。
 
-本项目是原项目 [YaoGaoChaoLe/EAgent](https://github.com/YaoGaoChaoLe/EAgent) 的 GPL-3.0 衍生作品，工具协议与提示词沿用原始实现，界面与运行时由 C# 重写。
 
 ## 特性
 
