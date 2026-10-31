@@ -81,6 +81,7 @@ public sealed partial class MainForm
             }
             _browser.ShowAsWindow();
             _webShown = true;
+            RefreshWebStateLabel();
             SetStatus("DeepSeek 网页已在独立窗口显示");
         }
         catch (Exception ex)
@@ -90,6 +91,7 @@ public sealed partial class MainForm
     }
     private async void Watchdog_Tick(object? sender, EventArgs e)
     {
+        RefreshWebStateLabel();
         if (_shuttingDown || _browser == null || _recovering) return;
         if (Volatile.Read(ref _browserStarting) != 0 || _browser.Starting) return;
         if (_browser.IsAlive) return;
@@ -132,6 +134,52 @@ public sealed partial class MainForm
             _recovering = false;
         }
     }
+    /// <summary>详情页“DeepSeek 网页”状态：未启动 / 启动中 / 运行中（隐藏）/ 运行中（窗口已显示）/ 调试连接断开。</summary>
+    private void RefreshWebStateLabel()
+    {
+        if (_lblWebState == null || _lblWebState.IsDisposed) return;
+
+        var starting = Volatile.Read(ref _browserStarting) != 0 || (_browser != null && _browser.Starting);
+        string text;
+        Color color;
+
+        if (_recovering)
+        {
+            text = "状态：浏览器恢复中…";
+            color = ThemeManager.Current.Accent;
+        }
+        else if (starting)
+        {
+            text = "状态：浏览器启动中…";
+            color = ThemeManager.Current.Accent;
+        }
+        else if (_browser == null || !_browser.IsAlive)
+        {
+            text = "状态：未启动（发送消息时自动启动）";
+            color = ThemeManager.Current.SubtleText;
+        }
+        else if (_cdp == null || !_cdp.IsConnected)
+        {
+            text = "状态：运行中（隐藏），调试连接已断开";
+            color = ThemeManager.Current.Text;
+        }
+        else if (_webShown)
+        {
+            text = "状态：运行中（窗口已显示）";
+            color = ThemeManager.Current.Accent;
+        }
+        else
+        {
+            text = "状态：运行中（后台隐藏）";
+            color = ThemeManager.Current.Accent;
+        }
+
+        if (text == _lastWebStateText && _lblWebState.ForeColor == color) return;
+        _lastWebStateText = text;
+        _lblWebState.Text = text;
+        _lblWebState.ForeColor = color;
+    }
+
     public async Task PrepareCaptureAsync()
     {
         await InvokeOnUi(this, () =>

@@ -126,6 +126,35 @@ public sealed partial class MainForm
             else
             {
                 await _cdp.NavigateAsync("https://chat.deepseek.com");
+                await Task.Delay(2500);
+                var curUrl = await _cdp.GetCurrentUrlAsync();
+                if (curUrl.Contains("/a/chat/s/"))
+                {
+                    try {
+                        await _cdp.EvaluateAsync(@"
+                            (() => {
+                                const els = Array.from(document.querySelectorAll('div, span, button, a'));
+                                for (const el of els) {
+                                    const t = (el.textContent || '').trim();
+                                    if (t === '开启新对话' || t === '新建对话' || t === '新建会话') {
+                                        let p = el;
+                                        for (let i=0; i<5; i++) {
+                                            if (p.tagName === 'BUTTON' || p.tagName === 'A' || p.getAttribute('role') === 'button') {
+                                                p.click();
+                                                return 'clicked';
+                                            }
+                                            p = p.parentElement;
+                                        }
+                                        el.click();
+                                        return 'clicked_self';
+                                    }
+                                }
+                                return 'notfound';
+                            })()
+                        ", 5000);
+                    } catch {}
+                    await Task.Delay(1500);
+                }
                 message = "system.txt";
             }
 
@@ -341,14 +370,14 @@ public sealed partial class MainForm
         UpdateRuntime(AgentPhase.Thinking);
         var isFirstTurn = false;
 
-        // ③-A：每个用户轮次落盘，进程崩溃后可由会话树与恢复协议接回。
         try
         {
             if (_sessionId == null)
             {
                 var title = isSystemRound ? "会话 " + DateTime.Now.ToString("MM-dd HH:mm") : BuildSessionTitle(message);
-                _sessionId = _sessions.CreateSession(_cfg.WorkDir, title).SessionId;
+                _sessionId = _sessions.CreateSession(_cfg.WorkDir, title).SessionId;
                 isFirstTurn = !isSystemRound;
+                RunOnUi(RefreshSessions);
             }
             if (!isSystemRound)
             {
@@ -361,9 +390,16 @@ public sealed partial class MainForm
         }
         catch { }
 
+        var transcript = new StringBuilder();
+        if (!isSystemRound)
+        {
+            transcript.AppendLine("### 👤 你");
+            transcript.AppendLine(message);
+            transcript.AppendLine();
+        }
+
         try
         {
-            // 刚急停过：等网页里那段回复真正生成结束再发消息，否则网页仍在生成会导致发送失败。
             if (_waitPageIdleAfterStop)
             {
                 _waitPageIdleAfterStop = false;
@@ -373,7 +409,14 @@ public sealed partial class MainForm
 
             var reply = await SendAndReceiveAsync(message, files, cts.Token);
             lastReply = reply;
-            ShowReply(reply);
+
+            transcript.AppendLine("### 🤖 DeepSeek");
+            transcript.AppendLine(reply);
+            transcript.AppendLine();
+            _lastReplyRaw = transcript.ToString();
+            RenderReply();
+            _txtReply.SelectionStart = _txtReply.TextLength;
+            _txtReply.ScrollToCaret();
 
             for (var hop = 0; hop < 60; hop++)
             {
@@ -384,7 +427,9 @@ public sealed partial class MainForm
                     turnStatus = "Stopped";
                     stopMode = "Safe";
                     SetStatus("已安全停止：本轮不再继续调用工具");
-                    ShowReply("[已安全停止] 当前工具已完成，本轮后续工具与追问均已取消。");
+                    transcript.AppendLine("> ⚠️ **[已安全停止]** 当前工具已完成，本轮后续工具与追问均已取消。");
+                    _lastReplyRaw = transcript.ToString();
+                    RenderReply();
                     break;
                 }
                 var call = ToolProtocol.Parse(reply);
@@ -397,7 +442,14 @@ public sealed partial class MainForm
                                    "如果确实要调用工具：请按格式重新输出一次；如果没有调用工具却收到此信息：请忽略。\n//[END]//";
                         reply = await SendAndReceiveAsync(hint, new List<string>(), cts.Token);
                         lastReply = reply;
-                        ShowReply(reply);
+
+                        transcript.AppendLine("### 🤖 DeepSeek (纠错)");
+                        transcript.AppendLine(reply);
+                        transcript.AppendLine();
+                        _lastReplyRaw = transcript.ToString();
+                        RenderReply();
+                        _txtReply.SelectionStart = _txtReply.TextLength;
+                        _txtReply.ScrollToCaret();
                         continue;
                     }
                     turnStatus = "Completed";
@@ -409,6 +461,18 @@ public sealed partial class MainForm
                 SetStatus("正在执行工具：" + call.Kind);
                 UpdateRuntime(AgentPhase.ToolRunning, call.Kind.ToString());
 
+                transcript.AppendLine("> 🛠️ **正在执行工具：** `" + call.Kind + "`");
+                if (call.Kind == ToolKind.PowerShell && !string.IsNullOrWhiteSpace(call.Payload))
+                {
+                    transcript.AppendLine("```powershell");
+                    transcript.AppendLine(call.Payload.Trim());
+                    transcript.AppendLine("```");
+                }
+                transcript.AppendLine();
+                _lastReplyRaw = transcript.ToString();
+                RenderReply();
+                _txtReply.SelectionStart = _txtReply.TextLength;
+                _txtReply.ScrollToCaret();
 
                 ToolResult result;
                 try
@@ -417,20 +481,40 @@ public sealed partial class MainForm
                 }
                 catch (OperationCanceledException) { throw; }
 
+                transcript.AppendLine("> ✅ **执行结果：**");
+                transcript.AppendLine("```text");
+                var resMsg = result.Message ?? "";
+                transcript.AppendLine(resMsg.Length > 3000 ? resMsg.Substring(0, 3000) + "\n...(内容过长已截断)" : resMsg);
+                transcript.AppendLine("```");
+                transcript.AppendLine();
+                _lastReplyRaw = transcript.ToString();
+                RenderReply();
+                _txtReply.SelectionStart = _txtReply.TextLength;
+                _txtReply.ScrollToCaret();
+
                 if (_safeStopRequested)
                 {
                     _safeStopRequested = false;
                     turnStatus = "Stopped";
                     stopMode = "Safe";
                     SetStatus("已安全停止：当前工具已完成");
-                    ShowReply("[已安全停止] 当前工具已执行完毕，结果不再回传，后续工具与追问均已取消。");
+                    transcript.AppendLine("> ⚠️ **[已安全停止]** 当前工具已执行完毕，结果不再回传，后续工具与追问均已取消。");
+                    _lastReplyRaw = transcript.ToString();
+                    RenderReply();
                     break;
                 }
 
                 SetStatus("正在等待 DeepSeek 回复...");
-                reply = await SendAndReceiveAsync(result.Message, result.Files, cts.Token);
+                reply = await SendAndReceiveAsync(result.Message ?? "", result.Files, cts.Token);
                 lastReply = reply;
-                ShowReply(reply);
+
+                transcript.AppendLine("### 🤖 DeepSeek");
+                transcript.AppendLine(reply);
+                transcript.AppendLine();
+                _lastReplyRaw = transcript.ToString();
+                RenderReply();
+                _txtReply.SelectionStart = _txtReply.TextLength;
+                _txtReply.ScrollToCaret();
             }
 
             await CaptureThinkingAsync(cts.Token);
@@ -440,21 +524,35 @@ public sealed partial class MainForm
             turnStatus = "Stopped";
             stopMode = "Immediate";
             SetStatus("已急停");
-            ShowReply("[已急停] 当前任务被用户终止，队列中的消息将在停止完成后发送。");
+            transcript.AppendLine("> ⚠️ **[已急停]** 当前任务被用户终止，队列中的消息将在停止完成后发送。");
+            _lastReplyRaw = transcript.ToString();
+            RenderReply();
         }
         catch (Exception) when (cts.IsCancellationRequested)
         {
-            // CDP 调用在取消时抛出的是 CdpException，同样按急停处理。
             turnStatus = "Stopped";
             stopMode = "Immediate";
             SetStatus("已急停");
-            ShowReply("[已急停] 当前任务被用户终止，队列中的消息将在停止完成后发送。");
+            transcript.AppendLine("> ⚠️ **[已急停]** 当前任务被用户终止，队列中的消息将在停止完成后发送。");
+            _lastReplyRaw = transcript.ToString();
+            RenderReply();
         }
         catch (Exception ex)
         {
             SetStatus("运行失败: " + ex.Message);
-            ShowReply("!![运行错误]!!\n" + ex.Message);
-            MessageBox.Show(this, ex.Message, "Deepseek-Desktop-Agent 运行错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            transcript.AppendLine("> ❌ **[运行错误]** " + ex.Message);
+            _lastReplyRaw = transcript.ToString();
+            RenderReply();
+
+            if (ex.Message.Contains("sign_in") || ex.Message.Contains("登录页"))
+            {
+                MessageBox.Show(this, "检测到 DeepSeek 当前处于未登录状态！\r\n请在弹出的网页中完成登录，然后重新发送。", "需要登录", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                _ = ShowWebSessionAsync();
+            }
+            else
+            {
+                MessageBox.Show(this, ex.Message, "Deepseek-Desktop-Agent 运行错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
         finally
         {
@@ -466,7 +564,6 @@ public sealed partial class MainForm
                     _sessions.CompleteTurn(finishedSession, finishedTurn, lastReply,
                         Array.Empty<string>(), turnStatus, stopMode);
 
-                    // 首轮结束：用 prompt 去前缀 + 标点断句生成更干净的标题（本地规则，不污染对话）。
                     if (isFirstTurn && lastReply.Length > 0)
                     {
                         try
@@ -479,17 +576,12 @@ public sealed partial class MainForm
                     }
                 }
                 catch { }
-                _turnId = null;
-                _runtimeState.TurnId = null;
-                RunOnUi(RefreshSessions);
             }
             SetBusy(false);
-            UpdateRuntime(AgentPhase.Idle);
-            // 只有整轮全部结束（DeepSeek 已回复且所有工具调用完成）后才发送队列里的下一条消息。
+            UpdateCounters();
             StartNextQueuedMessage();
         }
     }
-
     private static string BuildSessionTitle(string message)
     {
         var text = (message ?? string.Empty).Replace('\r', ' ').Replace('\n', ' ').Trim();
@@ -670,7 +762,6 @@ public sealed partial class MainForm
             {
                 _txtInput.Enabled = false;
                 _btnSend.Enabled = false;
-                _btnStart.Enabled = false;
                 SetStatus("检测到验证码，已锁定输入。请去设置页解锁。");
                 MessageBox.Show(this, "检测到 DeepSeek 弹出验证码！\r\n为保护账号，输入框已锁定。\r\n请手动在网页完成验证后，前往“设置 -> 快捷操作”解除锁定。", "安全拦截", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             });
@@ -807,7 +898,6 @@ public sealed partial class MainForm
         _busy = busy;
         RunOnUi(() =>
         {
-            _btnStart.Enabled = !busy;
             _btnChooseDir.Enabled = !busy;
             _btnChooseDir2.Enabled = !busy;
             _btnStop.Enabled = busy;

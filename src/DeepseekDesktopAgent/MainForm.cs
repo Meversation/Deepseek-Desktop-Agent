@@ -45,6 +45,8 @@ public sealed partial class MainForm : Form, IToolHost, IMessageFilter
     private int _currentRunIndex = -1;
     private string _lastSessionUrl = "";
     private readonly List<string> _attachedFiles = new();
+    // 输入卡片内部容器：底色必须和卡片填充一致，否则会露出深色方块，破坏圆角。
+    private readonly List<Control> _inputFill = new();
     // Agent 运行期间用户提交的消息先入队，等本轮全部工作（含所有工具调用）结束后再依次发送。
     private readonly Queue<QueuedMessage> _queue = new();
     private readonly object _queueLock = new();
@@ -54,6 +56,7 @@ public sealed partial class MainForm : Form, IToolHost, IMessageFilter
     private Label _lblStatus = null!;
     private Label _lblAttach = null!;
     private Label _lblInputHint = null!;
+    private Label _lblHeroTitle = null!;
     private Label _lblPsState = null!;
     private Label _lblOpacity = null!;
     private Label _lblInputPlaceholder = null!;
@@ -63,16 +66,17 @@ public sealed partial class MainForm : Form, IToolHost, IMessageFilter
     private LineScrollBar _detailPromptScroll = null!;
     private Button _btnChooseDir2 = null!;
     private Button _btnShowWeb = null!;
+    private Label _lblWebState = null!;
     private bool _webShown;
+    private string _lastWebStateText = "";
     private RoundedPanel _cardReply = null!;
     private RoundedPanel _cardInput = null!;
     private ThinkingIndicator _thinking = null!;
     private BufferedTableLayoutPanel _convoLayout = null!;
     private FlowLayoutPanel _settingsFlow = null!;
     private Button _btnChooseDir = null!;
-    private Button _btnStart = null!;
-    private Button _btnStop = null!;
     private Button _btnSend = null!;
+    private Button _btnStop = null!;
     private Button _btnAttach = null!;
     private Button _btnClearAttach = null!;
     private Button _btnSwitch = null!;
@@ -154,7 +158,14 @@ public sealed partial class MainForm : Form, IToolHost, IMessageFilter
         try { _runtime.Save(_runtimeState); } catch { }
 
         Load += MainForm_Load;
-        Shown += (_, _) => ApplyInitialSplitLayout();
+        Shown += (_, _) =>
+        {
+            ApplyInitialSplitLayout();
+            // 启动时 Windows 会先按缩放后的尺寸画一遍，个别子控件可能残留旧描边；
+            // 这里整体重绘一次，避免侧栏与输入框附近出现孤立的方框残影。
+            Invalidate(true);
+            Update();
+        };
         FormClosing += MainForm_FormClosing;
         FormClosed += (_, _) => Cleanup();
         _watchdog.Tick += Watchdog_Tick;
@@ -324,10 +335,11 @@ public sealed partial class MainForm : Form, IToolHost, IMessageFilter
                     if (focused is RichTextBox rtbY) { rtbY.Redo(); return true; }
                     break;
                 case Keys.Enter:
+                    // 只有焦点在对话输入框时才响应 Ctrl+Enter，避免在会话页输入框或设置里误触发。
                     if (_chkEnterSend.Checked)
                     {
-                        _ = SendUserAsync();
-                        return true;
+                        if (focused == _txtInput) { _ = SendUserAsync(); return true; }
+                        if (focused == _txtSessionInput) { TryContinueSession(); return true; }
                     }
                     break;
             }

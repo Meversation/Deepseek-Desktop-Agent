@@ -5,6 +5,12 @@ internal static class Program
     [STAThread]
     private static void Main(string[] args)
     {
+#if DEBUG
+        AppPaths.IsDev = !args.Contains("--prod", StringComparer.OrdinalIgnoreCase);
+#else
+        AppPaths.IsDev = args.Contains("--dev", StringComparer.OrdinalIgnoreCase);
+#endif
+
         if (args.Contains("--selftest", StringComparer.OrdinalIgnoreCase))
         {
             var ok = SelfTest.Run();
@@ -25,12 +31,15 @@ internal static class Program
         Application.ThreadException += (_, e) => ShowCrash(e.Exception);
         AppDomain.CurrentDomain.UnhandledException += (_, e) => ShowCrash(e.ExceptionObject as Exception);
 
-        using var mutex = new Mutex(true, "Deepseek-Desktop-Agent.SingleInstance", out var created);
+#if !DEBUG
+        var mutexName = AppPaths.IsDev ? "Deepseek-Desktop-Agent.Dev.SingleInstance" : "Deepseek-Desktop-Agent.SingleInstance";
+        using var mutex = new Mutex(true, mutexName, out var created);
         if (!created)
         {
             MessageBox.Show("Deepseek-Desktop-Agent 已经在运行。", "Deepseek-Desktop-Agent", MessageBoxButtons.OK, MessageBoxIcon.Information);
             return;
         }
+#endif
 
         var cfg = ConfigService.Load();
         if (!cfg.TermsAccepted)

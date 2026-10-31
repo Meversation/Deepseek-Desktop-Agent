@@ -21,16 +21,19 @@ public sealed class AppConfig
 
 public static class AppPaths
 {
+    public static bool IsDev { get; set; }
+    public static string Suffix => IsDev ? "-Dev" : "";
+
     public static string AppDataDir =>
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Deepseek-Desktop-Agent");
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Deepseek-Desktop-Agent" + Suffix);
 
     public static string ConfigFile => Path.Combine(AppDataDir, "config.json");
 
     public static string BrowserProfileDir =>
-        Path.Combine(Path.GetTempPath(), "deepseek_debug_profile");
+        Path.Combine(Path.GetTempPath(), "deepseek_debug_profile" + Suffix);
 
     /// <summary>会话临时目录前缀：%TEMP% 下以该前缀开头的目录都视为本程序产生的临时目录。</summary>
-    public const string SessionTempPrefix = "Deepseek-Desktop-Agent";
+    public static string SessionTempPrefix => IsDev ? "Deepseek-Desktop-Agent-Dev" : "Deepseek-Desktop-Agent";
 
     /// <summary>
     /// 当前会话临时目录：%TEMP%\Deepseek-Desktop-Agent。
@@ -133,6 +136,7 @@ public static class ConfigService
         if (cfg.OpacityPercent < 30) cfg.OpacityPercent = 30;
         if (cfg.OpacityPercent > 100) cfg.OpacityPercent = 100;
         if (cfg.BrowserPort <= 0 || cfg.BrowserPort > 65535) cfg.BrowserPort = 9222;
+            if (AppPaths.IsDev && cfg.BrowserPort == 9222) cfg.BrowserPort = 9223;
         return cfg;
     }
 }

@@ -35,11 +35,37 @@ public sealed class CdpClient : IAsyncDisposable
           try { return (root || document).querySelectorAll(sel); } catch (e) { return []; }
         }
         var Sel = {
-          input: 'textarea',
           assistant: '.ds-assistant-message-main-content, [class*="ds-assistant-message-main-content"]',
-          send: 'div[role="button"].ds-button--primary.ds-button--circle, [role="button"][aria-label*="发送"], [role="button"][aria-label*="Send"]',
+          send: 'div[role="button"].ds-button--primary.ds-button--circle, div[role="button"][class*="send"], [role="button"][aria-label*="发送"], [role="button"][aria-label*="Send"], button[aria-label*="Send"], button[aria-label*="发送"]',
           file: 'input[type="file"]'
         };
+        function isVisible(el) {
+          if (!el) return false;
+          var r = el.getBoundingClientRect();
+          if (r.width < 8 || r.height < 8) return false;
+          var cs = getComputedStyle(el);
+          return cs.display !== 'none' && cs.visibility !== 'hidden' && cs.opacity !== '0';
+        }
+        // 页面结构变化时依次尝试 textarea、contenteditable、role=textbox，只接受当前可见的输入框。
+        function findInput() {
+          var groups = ['textarea', '[contenteditable="true"]', '[role="textbox"]'];
+          for (var g = 0; g < groups.length; g++) {
+            var list = pick(groups[g]);
+            for (var i = 0; i < list.length; i++) {
+              var el = list[i];
+              if (el.disabled) continue;
+              if (isVisible(el)) return el;
+            }
+          }
+          // 页面尚未完成布局时退回第一个 textarea，避免刚加载就被判成找不到。
+          var ta = pick('textarea');
+          return ta.length ? ta[0] : null;
+        }
+        function inputValue(el) {
+          if (!el) return '';
+          if (typeof el.value === 'string' && !el.isContentEditable) return el.value;
+          return (el.innerText || el.textContent || '');
+        }
         """;
 
     private const string LastAssistantJs = KeySelectorJs + """
@@ -521,8 +547,8 @@ public sealed class CdpClient : IAsyncDisposable
             ct.ThrowIfCancellationRequested();
             try
             {
-                var state = await EvaluateAsync(
-                    "JSON.stringify({ready:document.readyState, hasInput:!!document.querySelector('textarea')})",
+                var state = await EvaluateAsync(KeySelectorJs +
+                    "JSON.stringify({ready:document.readyState, hasInput:!!findInput()})",
                     5000, ct);
                 using var doc = JsonDocument.Parse(state);
                 if (doc.RootElement.GetProperty("ready").GetString() == "complete" &&
@@ -557,6 +583,10 @@ public sealed class CdpClient : IAsyncDisposable
         try { await CallAsync("Page.bringToFront", null, 5000, ct); } catch { }
         try { await CallAsync("Emulation.setFocusEmulationEnabled", new JsonObject { ["enabled"] = true }, 5000, ct); } catch { }
 
+        // 先确认输入框可用，再上传附件，避免页面结构变化导致附件传完后才失败。
+        if (!await EnsureInputReadyAsync(20000, ct))
+            throw new CdpException(await BuildInputDiagnosticAsync(ct));
+
         if (files.Count > 0)
             await UploadFilesAsync(files, ct);
 
@@ -564,50 +594,70 @@ public sealed class CdpClient : IAsyncDisposable
         {
             var inject = KeySelectorJs + """
                 (function(msg){
-                  var ta = document.querySelector(Sel.input);
-                  if (!ta) return 'NO_INPUT';
-                  var proto = Object.getPrototypeOf(ta);
-                  var desc = Object.getOwnPropertyDescriptor(proto, 'value');
-                  if (desc && desc.set) desc.set.call(ta, msg); else ta.value = msg;
-                  ta.focus();
-                  ta.dispatchEvent(new Event('input', { bubbles: true }));
-                  ta.dispatchEvent(new Event('change', { bubbles: true }));
-                  return 'OK';
+                  var el = findInput();
+                  if (!el) return 'NO_INPUT';
+                  el.focus();
+                  if (typeof el.value === 'string' && !el.isContentEditable) {
+                    var proto = Object.getPrototypeOf(el);
+                    var desc = Object.getOwnPropertyDescriptor(proto, 'value');
+                    if (desc && desc.set) desc.set.call(el, msg); else el.value = msg;
+                  } else {
+                    // 富文本输入框：先全选再插入，兼容 ProseMirror / Lexical 一类实现。
+                    try {
+                      var sel = window.getSelection();
+                      var range = document.createRange();
+                      range.selectNodeContents(el);
+                      sel.removeAllRanges();
+                      sel.addRange(range);
+                      document.execCommand('insertText', false, msg);
+                    } catch (e) { }
+                    if (inputValue(el).trim().length === 0) el.textContent = msg;
+                  }
+                  if (typeof el.value === 'string' && !el.isContentEditable) {
+                    el.dispatchEvent(new Event('input', { bubbles: true }));
+                    el.dispatchEvent(new Event('change', { bubbles: true }));
+                  } else {
+                    el.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: msg }));
+                  }
+                  return inputValue(el).length > 0 ? 'OK' : 'NO_INPUT';
                 })(
                 """ + JsonSerializer.Serialize(message) + ")";
             var setResult = await EvaluateAsync(inject, 10000, ct);
-            if (setResult == "NO_INPUT") throw new CdpException("未找到 DeepSeek 输入框，请确认页面已加载。");
+            if (setResult != "OK")
+                throw new CdpException(await BuildInputDiagnosticAsync(ct, "无法写入 DeepSeek 输入框"));
         }
 
         var before = await ReadReplySnapshotAsync(ct);
 
+        var sent = false;
         if (!string.IsNullOrEmpty(message))
         {
             await Task.Delay(300, ct);
-            await EvaluateAsync(KeySelectorJs + """
-                (function(){
-                  var ta = document.querySelector(Sel.input);
-                  if (!ta) return false;
-                  ta.focus();
-                  for (var i = 0; i < 3; i++) {
-                    var type = i === 0 ? 'keydown' : (i === 1 ? 'keypress' : 'keyup');
-                    ta.dispatchEvent(new KeyboardEvent(type, {
-                      key: 'Enter', code: 'Enter', keyCode: 13, which: 13,
-                      bubbles: true, cancelable: true, isComposing: false
-                    }));
-                  }
-                  return true;
-                })()
-                """, 10000, ct);
+            await PressEnterAsync(ct);
             await Task.Delay(700, ct);
 
-            var remaining = await EvaluateAsync("(document.querySelector('textarea')||{}).value || ''", 5000, ct);
-            if (!string.IsNullOrEmpty(remaining))
-                await ClickSendButtonAsync(ct);
+            // 回车已经送出时输入框会被清空；仍有残留内容则改按发送按钮。
+            if (string.IsNullOrWhiteSpace(await ReadInputValueAsync(ct)))
+                sent = true;
+            else
+                sent = await ClickSendButtonAsync(ct);
         }
         else
         {
-            await ClickSendButtonAsync(ct);
+            sent = await ClickSendButtonAsync(ct);
+        }
+
+        if (!sent)
+        {
+            if (string.IsNullOrEmpty(message))
+                throw new CdpException("未找到 DeepSeek 发送按钮，附件无法发送。页面结构可能已变化，可点击“详情 → 显示网页会话”手动检查页面。");
+
+            // 发送按钮找不到时兜底再按一次回车，失败则明确报错，不再静默等到回复超时。
+            await PressEnterAsync(ct);
+            await Task.Delay(900, ct);
+            if (!string.IsNullOrWhiteSpace(await ReadInputValueAsync(ct)))
+                throw new CdpException("未找到 DeepSeek 发送按钮，消息可能未发送。页面结构可能已变化，可点击“详情 → 显示网页会话”手动检查页面。");
+            sent = true;
         }
 
         var reply = await PollReplyAsync(before, timeoutMs, ct);
@@ -622,16 +672,131 @@ public sealed class CdpClient : IAsyncDisposable
         return reply;
     }
 
-    private async Task ClickSendButtonAsync(CancellationToken ct)
+    /// <summary>等待输入框出现；页面长时间没有可用输入框时重载一次再继续等待。</summary>
+    private async Task<bool> EnsureInputReadyAsync(int timeoutMs, CancellationToken ct)
+    {
+        var start = DateTime.UtcNow;
+        var deadline = start.AddMilliseconds(timeoutMs);
+        var reloaded = false;
+        while (DateTime.UtcNow < deadline)
+        {
+            ct.ThrowIfCancellationRequested();
+            if (await HasVisibleInputAsync(ct))
+            {
+                await Task.Delay(400, ct);
+                return true;
+            }
+
+            // 前端结构变化或渲染卡住时，重载页面一次往往能恢复输入框。
+            if (!reloaded && DateTime.UtcNow > start.AddSeconds(4))
+            {
+                reloaded = true;
+                Log?.Invoke("未找到输入框，正在重载 DeepSeek 页面");
+                try { await CallAsync("Page.reload", null, 10000, ct); } catch { }
+                await Task.Delay(2500, ct);
+            }
+            await Task.Delay(600, ct);
+        }
+        return false;
+    }
+
+    private async Task<bool> HasVisibleInputAsync(CancellationToken ct)
+    {
+        try
+        {
+            var result = await EvaluateAsync(KeySelectorJs + "findInput() ? 'YES' : 'NO'", 5000, ct);
+            return result == "YES";
+        }
+        catch (CdpException)
+        {
+            return false;
+        }
+    }
+
+    private async Task<string> ReadInputValueAsync(CancellationToken ct)
+    {
+        try
+        {
+            return await EvaluateAsync(KeySelectorJs + "inputValue(findInput())", 5000, ct);
+        }
+        catch
+        {
+            return "";
+        }
+    }
+
+    private async Task PressEnterAsync(CancellationToken ct)
     {
         await EvaluateAsync(KeySelectorJs + """
+            (function(){
+              var el = findInput();
+              if (!el) return false;
+              el.focus();
+              for (var i = 0; i < 3; i++) {
+                var type = i === 0 ? 'keydown' : (i === 1 ? 'keypress' : 'keyup');
+                el.dispatchEvent(new KeyboardEvent(type, {
+                  key: 'Enter', code: 'Enter', keyCode: 13, which: 13,
+                  bubbles: true, cancelable: true, isComposing: false
+                }));
+              }
+              return true;
+            })()
+            """, 10000, ct);
+    }
+
+    /// <summary>找不到输入框时收集页面状态，给出可定位问题的错误信息。</summary>
+    private async Task<string> BuildInputDiagnosticAsync(CancellationToken ct, string? prefix = null)
+    {
+        var head = prefix ?? "未找到 DeepSeek 输入框";
+        var detail = "";
+        try
+        {
+            detail = await EvaluateAsync(KeySelectorJs + """
+                (function(){
+                  var body = ((document.body && document.body.innerText) || '').replace(/\s+/g, ' ').slice(0, 200);
+                  return JSON.stringify({
+                    ready: document.readyState,
+                    url: location.href,
+                    textarea: pick('textarea').length,
+                    editable: pick('[contenteditable="true"]').length,
+                    textbox: pick('[role="textbox"]').length,
+                    login: /登录|log ?in|sign ?in/i.test(body)
+                  });
+                })()
+                """, 5000, ct);
+        }
+        catch { }
+
+        var sb = new StringBuilder(head + "（页面结构可能已变化）。");
+        if (!string.IsNullOrWhiteSpace(detail))
+        {
+            try
+            {
+                using var doc = JsonDocument.Parse(detail);
+                var root = doc.RootElement;
+                sb.Append($" 页面状态：ready={root.GetProperty("ready").GetString()}，URL={root.GetProperty("url").GetString()}，"
+                          + $"textarea={root.GetProperty("textarea").GetInt32()}，"
+                          + $"contenteditable={root.GetProperty("editable").GetInt32()}，"
+                          + $"role=textbox={root.GetProperty("textbox").GetInt32()}。");
+                if (root.GetProperty("login").GetBoolean())
+                    sb.Append(" 当前页面疑似登录页，请先在网页完成登录。");
+            }
+            catch { }
+        }
+        sb.Append(" 可点击“详情 → 显示网页会话”手动检查页面。");
+        return sb.ToString();
+    }
+
+    private async Task<bool> ClickSendButtonAsync(CancellationToken ct)
+    {
+        var result = await EvaluateAsync(KeySelectorJs + """
             (function(){
               var btns = pick(Sel.send);
               var btn = null, w = window.innerWidth, h = window.innerHeight;
               for (var i = 0; i < btns.length; i++) {
                 var el = btns[i];
-                if (el.offsetParent === null) continue;
-                if (el.getAttribute('aria-disabled') === 'true') continue;
+                if (!isVisible(el)) continue;
+                if (el.getAttribute('aria-disabled') === 'true' || el.disabled) continue;
                 var r = el.getBoundingClientRect();
                 if (r.x < w * 0.5 || r.y < h * 0.6) continue;
                 btn = el;
@@ -641,6 +806,7 @@ public sealed class CdpClient : IAsyncDisposable
               return true;
             })()
             """, 10000, ct);
+        return result.Trim().ToLowerInvariant() == "true";
     }
 
     private async Task UploadFilesAsync(IReadOnlyList<string> files, CancellationToken ct)

@@ -12,6 +12,7 @@ public sealed class BrowserManager : IDisposable
     private IntPtr _host;
     private Native.RECT _floating;
     private long _savedStyle;
+    private long _savedExStyle;
     private bool _embedded;
     private int _topCrop;
 
@@ -38,6 +39,7 @@ public sealed class BrowserManager : IDisposable
             _host = IntPtr.Zero;
             _hwnd = IntPtr.Zero;
             _savedStyle = 0;
+            _savedExStyle = 0;
             _topCrop = 0;
 
             if (await IsPortReadyAsync(port, ct))
@@ -95,7 +97,7 @@ public sealed class BrowserManager : IDisposable
                 "--test-type",
                 "--lang=zh-CN",
                 "--window-size=1200,900",
-                "--window-position=-32000,-32000",
+                "--window-position=-10000,-10000",
                 "--app=https://chat.deepseek.com"
             });
 
@@ -153,7 +155,17 @@ public sealed class BrowserManager : IDisposable
         // 隐藏会清掉 WS_VISIBLE，先记录原始样式，还原窗口时才能恢复成普通独立窗口。
         if (_savedStyle == 0)
             _savedStyle = Native.GetWindowLongPtr(_hwnd, Native.GWL_STYLE).ToInt64();
+        if (_savedExStyle == 0)
+        {
+            _savedExStyle = Native.GetWindowLongPtr(_hwnd, Native.GWL_EXSTYLE).ToInt64();
+            Native.SetWindowLongPtr(_hwnd, Native.GWL_EXSTYLE, new IntPtr(_savedExStyle | Native.WS_EX_TOOLWINDOW));
+        }
         Native.ShowWindow(_hwnd, Native.SW_HIDE);
+        if (_savedExStyle == 0)
+        {
+            _savedExStyle = Native.GetWindowLongPtr(_hwnd, Native.GWL_EXSTYLE).ToInt64();
+            Native.SetWindowLongPtr(_hwnd, Native.GWL_EXSTYLE, new IntPtr(_savedExStyle | 0x80));
+        }
     }
 
     public void Embed(IntPtr host, int topCrop)
@@ -232,6 +244,16 @@ public sealed class BrowserManager : IDisposable
             Native.SetWindowLongPtr(_hwnd, Native.GWL_STYLE, new IntPtr(_savedStyle));
         Native.SetWindowPos(_hwnd, IntPtr.Zero, left, top, width, height,
             Native.SWP_NOZORDER | Native.SWP_SHOWWINDOW | Native.SWP_FRAMECHANGED);
+        if (_savedExStyle != 0)
+        {
+            Native.SetWindowLongPtr(_hwnd, Native.GWL_EXSTYLE, new IntPtr(_savedExStyle));
+            _savedExStyle = 0;
+        }
+        if (_savedExStyle != 0)
+        {
+            Native.SetWindowLongPtr(_hwnd, Native.GWL_EXSTYLE, new IntPtr(_savedExStyle));
+            _savedExStyle = 0;
+        }
         Native.ShowWindow(_hwnd, Native.SW_SHOW);
         Native.ForceFocus(_hwnd);
         Log?.Invoke("DeepSeek 窗口已还原为独立窗口");
@@ -258,6 +280,21 @@ public sealed class BrowserManager : IDisposable
 
         Native.SetWindowPos(_hwnd, IntPtr.Zero, left, top, width, height,
             Native.SWP_NOZORDER | Native.SWP_SHOWWINDOW | Native.SWP_FRAMECHANGED);
+        if (_savedExStyle != 0)
+        {
+            Native.SetWindowLongPtr(_hwnd, Native.GWL_EXSTYLE, new IntPtr(_savedExStyle));
+            _savedExStyle = 0;
+        }
+        if (_savedExStyle != 0)
+        {
+            Native.SetWindowLongPtr(_hwnd, Native.GWL_EXSTYLE, new IntPtr(_savedExStyle));
+            _savedExStyle = 0;
+        }
+        if (_savedExStyle != 0)
+        {
+            Native.SetWindowLongPtr(_hwnd, Native.GWL_EXSTYLE, new IntPtr(_savedExStyle));
+            _savedExStyle = 0;
+        }
         Native.ShowWindow(_hwnd, Native.SW_SHOW);
         Native.ForceFocus(_hwnd);
         Log?.Invoke("DeepSeek 网页已作为独立窗口显示");

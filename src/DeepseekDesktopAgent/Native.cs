@@ -7,6 +7,7 @@ namespace DeepseekDesktopAgent;
 internal static class Native
 {
     public const int GWL_STYLE = -16;
+    public const int GWL_EXSTYLE = -20;
 
     public const long WS_CHILD = 0x40000000L;
     public const long WS_POPUP = 0x80000000L;
@@ -15,6 +16,7 @@ internal static class Native
     public const long WS_SYSMENU = 0x00080000L;
     public const long WS_MINIMIZEBOX = 0x00020000L;
     public const long WS_MAXIMIZEBOX = 0x00010000L;
+    public const long WS_EX_TOOLWINDOW = 0x00000080L;
 
     public const uint SWP_NOSIZE = 0x0001;
     public const uint SWP_NOMOVE = 0x0002;

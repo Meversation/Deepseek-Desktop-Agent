@@ -57,13 +57,13 @@ public sealed partial class MainForm
             Tag = "subtle",
             Margin = Padding.Empty
         };
-        _btnNewChat = MakeButton("新建对话", 88, "accent");
-        _btnNewChat.Dock = DockStyle.Fill;
-        _btnNewChat.Margin = new Padding(4, 4, 0, 4);
+        _btnNewChat = MakeButton("新建对话", 76, "accent");
+        _btnNewChat.Dock = DockStyle.None;
+        _btnNewChat.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+        _btnNewChat.Margin = new Padding(0, 6, 0, 0);
         brand.Controls.Add(brandTitle, 0, 0);
         brand.Controls.Add(brandSub, 0, 1);
         brand.Controls.Add(_btnNewChat, 1, 0);
-        brand.SetRowSpan(_btnNewChat, 2);
 
         // 技能入口：压缩成一行，避免和会话列表抢空间。
         var skillCard = new RoundedPanel
@@ -75,6 +75,9 @@ public sealed partial class MainForm
             Margin = new Padding(0, 1, 0, 1)
         };
         var skillGrid = new BufferedTableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1, Margin = Padding.Empty };
+        // 卡片内部容器的底色必须和卡片一致，否则会盖住卡片填充、只留下边缘一条，看着像孤立方框。
+        skillGrid.BackColor = ThemeManager.Current.Input;
+        _inputFill.Add(skillGrid);
         skillGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         skillGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 78));
         var skillTitle = new Label
@@ -117,8 +120,11 @@ public sealed partial class MainForm
         };
         _lstSessions.SelectedIndexChanged += (_, _) =>
         {
-            ShowSessionDetail();
-            if (!_suppressSessionNav && SelectedSessionNode() != null) ShowMainPage(3);
+            var node = SelectedSessionNode();
+            if (!_suppressSessionNav && node != null)
+            {
+                LoadSessionToChatArea(node);
+            }
         };
         _lstSessions.DrawItem += DrawSessionRow;
         // 右键菜单：重命名 / 删除；右键先选中该行，避免误操作别的会话。
@@ -247,7 +253,6 @@ public sealed partial class MainForm
         _btnChooseDir.Click += async (_, _) => await ChooseDirClickedAsync();
         _btnChooseDir2.Click += async (_, _) => await ChooseDirClickedAsync();
         _btnShowWeb.Click += async (_, _) => await ShowWebSessionAsync();
-        _btnStart.Click += async (_, _) => await StartFlowAsync();
         _btnStop.Click += (_, _) => StopCurrent();
         _rbOld.CheckedChanged += (_, _) =>
         {
@@ -266,24 +271,41 @@ public sealed partial class MainForm
     {
         // 主区域只放和 AI 的对话内容与输入；工作目录、系统提示词、附件、网页会话统一收进“详情”页。
         page.Padding = new Padding(26, 14, 26, 14);
-        var layout = new BufferedTableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 7 };
-        layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));   // 0 回复
+        var layout = new BufferedTableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 6 };
+        layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));   // 0 回复 / 空态标题
         layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 0));    // 1 思考提示
         layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 0));    // 2 消息队列
-        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 150));  // 3 输入
+        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 158));  // 3 输入（含底部工具行）
         layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 0));    // 4 输入提示
         layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));   // 5 选择文件夹
-        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 38));   // 6 操作
         _convoLayout = layout;
+
+        // 回复区与空态标题共用同一块区域：标题在整块空白区域里上下居中，像 Trae 那样。
+        var replyHost = new BufferedPanel
+        {
+            Dock = DockStyle.Fill,
+            Margin = new Padding(2, 0, 2, 6)
+        };
+        _lblHeroTitle = new Label
+        {
+            Text = "Build With DeepSeek",
+            Dock = DockStyle.Fill,
+            TextAlign = ContentAlignment.MiddleCenter,
+            Font = new Font("Microsoft YaHei UI", 24F, FontStyle.Bold)
+        };
+        replyHost.Controls.Add(_lblHeroTitle);
 
         _cardReply = new RoundedPanel
         {
             Dock = DockStyle.Fill,
             Padding = new Padding(16, 12, 12, 10),
-            Margin = new Padding(2, 0, 2, 6),
+            Margin = Padding.Empty,
             Radius = 14,
             FillRole = PanelFill.Input
         };
+        replyHost.Controls.Add(_cardReply);
+        _cardReply.BringToFront();
+
         _txtReply = new NoCaretRichTextBox
         {
             Dock = DockStyle.Fill,
@@ -336,19 +358,29 @@ public sealed partial class MainForm
             FlowDirection = FlowDirection.TopDown,
             WrapContents = false,
             AutoScroll = true,
-            Visible = false
+            Visible = false,
+            BackColor = ThemeManager.Current.Input
         };
+        _inputFill.Add(_queuePreviewList);
         _queuePreviewPanel.Controls.Add(_queuePreviewList);
         _queuePreviewPanel.Controls.Add(_queuePreviewHeader);
 
         _cardInput = new RoundedPanel
         {
             Dock = DockStyle.Fill,
-            Padding = new Padding(14, 8, 10, 6),
+            Padding = new Padding(12, 8, 8, 6),
             Margin = new Padding(2, 0, 2, 0),
             Radius = 12,
             FillRole = PanelFill.Input
         };
+        // 输入卡片：上方是文本区，下方一行工具（附件 + 模型名 + 发送/急停），像 Trae 的输入框。
+        var inputGrid = new BufferedTableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 2, Margin = Padding.Empty };
+        inputGrid.BackColor = ThemeManager.Current.Input;
+        inputGrid.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        inputGrid.RowStyles.Add(new RowStyle(SizeType.Absolute, 30));
+
+        var inputHost = new BufferedPanel { Dock = DockStyle.Fill, Margin = Padding.Empty };
+        inputHost.BackColor = ThemeManager.Current.Input;
         _txtInput = new TextBox
         {
             Dock = DockStyle.Fill,
@@ -364,25 +396,57 @@ public sealed partial class MainForm
             AutoSize = false,
             Width = 480,
             Height = 22,
-            Left = 16,
-            Top = 10,
+            Left = 2,
+            Top = 2,
             Visible = false,
             Cursor = Cursors.IBeam,
             Font = new Font("Microsoft YaHei UI", 8.25F)
         };
-        _lblInputPlaceholder.MouseDown += (_, _) => _txtInput.Focus();
+        _lblInputPlaceholder.MouseDown += (_, _) => { _lblInputPlaceholder.Visible = false; _txtInput.Focus(); };
         _inputMask = new ScrollMask
         {
             Width = SystemInformation.VerticalScrollBarWidth,
             Target = _txtInput
         };
         _inputScroll = new LineScrollBar { Dock = DockStyle.Right, Width = 12, Margin = Padding.Empty };
-        _cardInput.Controls.Add(_txtInput);
-        _cardInput.Controls.Add(_lblInputPlaceholder);
-        _cardInput.Controls.Add(_inputScroll);
-        _cardInput.Controls.Add(_inputMask);
+        inputHost.Controls.Add(_txtInput);
+        inputHost.Controls.Add(_lblInputPlaceholder);
+        inputHost.Controls.Add(_inputScroll);
+        inputHost.Controls.Add(_inputMask);
         _inputMask.BringToFront();
-        _cardInput.Resize += (_, _) => _inputMask.PlaceOver(_txtInput, _inputScroll);
+        inputHost.Resize += (_, _) => _inputMask.PlaceOver(_txtInput, _inputScroll);
+
+        var toolbar = new BufferedTableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 4, RowCount = 1, Margin = Padding.Empty };
+        toolbar.BackColor = ThemeManager.Current.Input;
+        toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 32));
+        toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 40));
+        toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 42));
+        var btnPlus = MakeButton("+", 28);
+        btnPlus.Dock = DockStyle.Fill;
+        btnPlus.Margin = new Padding(0, 0, 4, 0);
+        btnPlus.Font = new Font("Microsoft YaHei UI", 12F, FontStyle.Bold);
+        btnPlus.Click += (_, _) => AttachFiles();
+        _btnSend = MakeButton("↑", 40, "accent");
+        _btnSend.Dock = DockStyle.Fill;
+        _btnSend.Margin = Padding.Empty;
+        _btnSend.Font = new Font("Microsoft YaHei UI", 11F, FontStyle.Bold);
+        _btnStop = MakeButton("■", 40);
+        _btnStop.Dock = DockStyle.Fill;
+        _btnStop.Margin = new Padding(0, 0, 4, 0);
+        _btnStop.Font = new Font("Microsoft YaHei UI", 9F);
+        ((AccentButton)_btnStop).Danger = true;
+        _btnStop.Visible = false;
+        toolbar.Controls.Add(btnPlus, 0, 0);
+        toolbar.Controls.Add(_btnStop, 2, 0);
+        toolbar.Controls.Add(_btnSend, 3, 0);
+
+        inputGrid.Controls.Add(inputHost, 0, 0);
+        inputGrid.Controls.Add(toolbar, 0, 1);
+        _cardInput.Controls.Add(inputGrid);
+        _inputFill.Add(inputGrid);
+        _inputFill.Add(inputHost);
+        _inputFill.Add(toolbar);
         _txtInput.HandleCreated += (_, _) => _inputScroll.Attach(_txtInput.Handle);
         _txtInput.TextChanged += (_, _) =>
         {
@@ -394,6 +458,7 @@ public sealed partial class MainForm
         {
             _cardInput.Highlight = true;
             _cardInput.Invalidate();
+            _lblInputPlaceholder.Visible = false;
             UpdateInputPlaceholder();
         };
         _txtInput.Leave += (_, _) =>
@@ -422,11 +487,13 @@ public sealed partial class MainForm
             RowCount = 1,
             Margin = new Padding(2, 4, 2, 2)
         };
-        workRow.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 92));
+        workRow.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 115));
         workRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        _btnChooseDir = MakeButton("选择文件夹", 90);
+        _btnChooseDir = MakeButton("📁  选择项目  ▾", 105, "subtle");
+        _btnChooseDir.TextAlign = ContentAlignment.MiddleCenter;
         _btnChooseDir.Dock = DockStyle.Fill;
         _btnChooseDir.Margin = new Padding(0, 0, 8, 0);
+        // Tag 已在 MakeButton 设置
         _lblWorkDir = new Label
         {
             Text = "未选择工作目录",
@@ -439,45 +506,15 @@ public sealed partial class MainForm
         workRow.Controls.Add(_btnChooseDir, 0, 0);
         workRow.Controls.Add(_lblWorkDir, 1, 0);
 
-        // 操作行：开始/继续、急停、发送；其余低频操作收进“详情”页。
-        var actions = new BufferedTableLayoutPanel
-        {
-            Dock = DockStyle.Fill,
-            ColumnCount = 4,
-            RowCount = 1,
-            Margin = new Padding(2, 0, 2, 2)
-        };
-        actions.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        actions.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 104));
-        actions.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 76));
-        actions.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 118));
-
-        _btnStart = MakeButton("开始 / 继续", 98, "accent");
-        _btnStart.Dock = DockStyle.Fill;
-        _btnStart.Margin = new Padding(0, 3, 6, 3);
-        _btnStop = MakeButton("急停", 70);
-        _btnStop.Dock = DockStyle.Fill;
-        _btnStop.Margin = new Padding(0, 3, 6, 3);
-        ((AccentButton)_btnStop).Danger = true;
-        _btnStop.Enabled = false;
-        _btnSend = MakeButton("发送", 112, "accent");
-        _btnSend.Dock = DockStyle.Fill;
-        _btnSend.Margin = new Padding(0, 3, 0, 3);
-
-        actions.Controls.Add(_btnStart, 1, 0);
-        actions.Controls.Add(_btnStop, 2, 0);
-        actions.Controls.Add(_btnSend, 3, 0);
-
         void SendClicked(object? s, EventArgs e) => _ = SendUserAsync();
         _btnSend.Click += SendClicked;
 
-        layout.Controls.Add(_cardReply, 0, 0);
+        layout.Controls.Add(replyHost, 0, 0);
         layout.Controls.Add(_thinking, 0, 1);
         layout.Controls.Add(_queuePreviewPanel, 0, 2);
         layout.Controls.Add(_cardInput, 0, 3);
         layout.Controls.Add(_lblInputHint, 0, 4);
         layout.Controls.Add(workRow, 0, 5);
-        layout.Controls.Add(actions, 0, 6);
         page.Controls.Add(layout);
     }
 
@@ -491,7 +528,7 @@ public sealed partial class MainForm
         {
             Dock = DockStyle.Fill,
             ColumnCount = 1,
-            RowCount = 11,
+            RowCount = 12,
             Margin = Padding.Empty
         };
         layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));   // 0 工作目录
@@ -503,8 +540,9 @@ public sealed partial class MainForm
         layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));   // 6 附件按钮
         layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));   // 7 DeepSeek 网页
         layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));   // 8 网页按钮
-        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 26));   // 9 网页说明
-        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 30));   // 10 深度思考
+        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 24));   // 9 运行状态
+        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 26));   // 10 网页说明
+        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 30));   // 11 深度思考
 
         var workTitle = SectionLabel("工作目录");
         workTitle.Dock = DockStyle.Fill;
@@ -627,6 +665,17 @@ public sealed partial class MainForm
         webRow.Controls.Add(_btnSwitch, 1, 0);
         layout.Controls.Add(webRow, 0, 8);
 
+        _lblWebState = new Label
+        {
+            Text = "状态：未启动",
+            Dock = DockStyle.Fill,
+            TextAlign = ContentAlignment.MiddleLeft,
+            AutoEllipsis = true,
+            Font = new Font("Microsoft YaHei UI", 8.25F),
+            Margin = new Padding(2, 0, 0, 2)
+        };
+        layout.Controls.Add(_lblWebState, 0, 9);
+
         layout.Controls.Add(new Label
         {
             Text = "网页默认隐藏，只有点击“显示网页会话”才会以独立窗口出现；被关闭后会自动恢复。",
@@ -636,7 +685,7 @@ public sealed partial class MainForm
             ForeColor = ThemeManager.Current.SubtleText,
             Font = new Font("Microsoft YaHei UI", 8.25F),
             Margin = new Padding(2, 0, 0, 2)
-        }, 0, 9);
+        }, 0, 10);
 
         _chkDeepThink = new CheckBox
         {
@@ -644,7 +693,7 @@ public sealed partial class MainForm
             Dock = DockStyle.Fill,
             Margin = new Padding(0, 2, 0, 2)
         };
-        layout.Controls.Add(_chkDeepThink, 0, 10);
+        layout.Controls.Add(_chkDeepThink, 0, 11);
 
         page.Controls.Add(layout);
 
@@ -668,8 +717,19 @@ public sealed partial class MainForm
     {
         if (_convoLayout.RowStyles.Count > 1)
             _convoLayout.RowStyles[1].Height = on ? 36 : 0;
-        if (on) _thinking.StartThinking(_lblStatus.Text);
+        if (on)
+        {
+            ShowHeroTitle(false);
+            _thinking.StartThinking(_lblStatus.Text);
+        }
         else _thinking.StopThinking();
+    }
+
+    /// <summary>空态标题：新建会话时在空白区域正中显示 Build With DeepSeek，有内容后隐藏。</summary>
+    private void ShowHeroTitle(bool on)
+    {
+        _lblHeroTitle.Visible = on;
+        _cardReply.Visible = !on;
     }
     /// <summary>带小标题的圆角字段卡片，让每块区域一眼看懂用途。</summary>
     private static Control FieldCard(string caption, Control input)
@@ -893,7 +953,6 @@ public sealed partial class MainForm
         {
             _txtInput.Enabled = true;
             _btnSend.Enabled = true;
-            _btnStart.Enabled = true;
             SetStatus("输入框已解锁，请谨慎操作。");
         }
     }
@@ -955,6 +1014,7 @@ public sealed partial class MainForm
     {
         ThemeManager.Apply(this, _chkNight.Checked ? ThemeManager.Dark : ThemeManager.Light);
         _lblInputHint.ForeColor = ThemeManager.Current.SubtleText;
+        _lblHeroTitle.ForeColor = ThemeManager.Current.Text;
         _lblDetailWorkDir.ForeColor = ThemeManager.Current.Text;
         _statusLabel.ForeColor = ThemeManager.Current.SubtleText;
         _counterLabel.ForeColor = ThemeManager.Current.SubtleText;
@@ -999,8 +1059,11 @@ public sealed partial class MainForm
         _sessionInputMask.BackColor = ThemeManager.Current.Input;
         _sessionInputScroll.BackColor = ThemeManager.Current.Input;
         _sessionInputScroll.Invalidate();
+        // 输入卡片内部的容器必须跟着填充色走，否则会露出深色方块。
+        foreach (var ctl in _inputFill) ctl.BackColor = ThemeManager.Current.Input;
         _menuSessions.BackColor = ThemeManager.Current.Surface;
         _menuSessions.ForeColor = ThemeManager.Current.Text;
+        RefreshWebStateLabel();
         UpdateAttachLabel();
         UpdateInputPlaceholder();
         RenderReply();
@@ -1115,7 +1178,7 @@ public sealed partial class MainForm
         var layout = new BufferedTableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 3 };
         layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 44));
         layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 118));
+        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 150));
 
         var head = new BufferedTableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 4, RowCount = 1, Margin = new Padding(0, 0, 0, 8) };
         head.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
@@ -1180,19 +1243,19 @@ public sealed partial class MainForm
         _sessionDetail.TextChanged += (_, _) => _detailScroll.RefreshScroll();
         _sessionDetail.Resize += (_, _) => _detailMask.PlaceOver(_sessionDetail, _detailScroll);
 
-        // 底部输入框：选中会话后可直接接续任务，历史区保持只读回溯。
+        // 底部输入卡片：与对话页一致，上方文本区 + 下方工具行（+ / ↑），不再用巨大按钮。
         var inputCard = new RoundedPanel
         {
             Dock = DockStyle.Fill,
             Radius = 12,
             FillRole = PanelFill.Input,
-            Padding = new Padding(12, 8, 10, 8),
+            Padding = new Padding(12, 8, 8, 6),
             Margin = new Padding(0, 8, 0, 0)
         };
-        var inputGrid = new BufferedTableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 3, RowCount = 1, Margin = Padding.Empty };
-        inputGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        inputGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 14));
-        inputGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 96));
+        var inputGrid = new BufferedTableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 2, Margin = Padding.Empty };
+        inputGrid.BackColor = ThemeManager.Current.Input;
+        inputGrid.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        inputGrid.RowStyles.Add(new RowStyle(SizeType.Absolute, 30));
 
         _txtSessionInput = new TextBox
         {
@@ -1206,26 +1269,40 @@ public sealed partial class MainForm
             Margin = Padding.Empty
         };
         _sessionInputMask = new ScrollMask { Width = SystemInformation.VerticalScrollBarWidth, Target = _txtSessionInput };
-        _sessionInputScroll = new LineScrollBar { Dock = DockStyle.Fill, Width = 12, Margin = new Padding(1, 0, 1, 0) };
-        _btnSessionSend = MakeButton("发送", 92, "accent");
-        _btnSessionSend.Dock = DockStyle.Fill;
-        _btnSessionSend.Margin = new Padding(6, 2, 0, 2);
-        inputGrid.Controls.Add(_txtSessionInput, 0, 0);
-        inputGrid.Controls.Add(_sessionInputScroll, 1, 0);
-        inputGrid.Controls.Add(_btnSessionSend, 2, 0);
-        inputGrid.Controls.Add(_sessionInputMask);
+        _sessionInputScroll = new LineScrollBar { Dock = DockStyle.Right, Width = 12, Margin = Padding.Empty };
+        // 文本框与自绘滚动条放在同一个容器里，避免系统原生滚动条露出来。
+        var inputHost = new BufferedPanel { Dock = DockStyle.Fill, Margin = Padding.Empty };
+        inputHost.BackColor = ThemeManager.Current.Input;
+        inputHost.Controls.Add(_txtSessionInput);
+        inputHost.Controls.Add(_sessionInputScroll);
+        inputHost.Controls.Add(_sessionInputMask);
         _sessionInputMask.BringToFront();
-        inputGrid.Resize += (_, _) => _sessionInputMask.PlaceOver(_txtSessionInput, _sessionInputScroll);
+        inputHost.Resize += (_, _) => _sessionInputMask.PlaceOver(_txtSessionInput, _sessionInputScroll);
+
+        var toolbar = new BufferedTableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 3, RowCount = 1, Margin = Padding.Empty };
+        toolbar.BackColor = ThemeManager.Current.Input;
+        toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 32));
+        toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 42));
+        var btnPlus = MakeButton("+", 28);
+        btnPlus.Dock = DockStyle.Fill;
+        btnPlus.Margin = new Padding(0, 0, 4, 0);
+        btnPlus.Font = new Font("Microsoft YaHei UI", 12F, FontStyle.Bold);
+        btnPlus.Click += (_, _) => AttachFiles();
+        _btnSessionSend = MakeButton("↑", 40, "accent");
+        _btnSessionSend.Dock = DockStyle.Fill;
+        _btnSessionSend.Margin = Padding.Empty;
+        _btnSessionSend.Font = new Font("Microsoft YaHei UI", 11F, FontStyle.Bold);
+        toolbar.Controls.Add(btnPlus, 0, 0);
+        toolbar.Controls.Add(_btnSessionSend, 2, 0);
+
+        inputGrid.Controls.Add(inputHost, 0, 0);
+        inputGrid.Controls.Add(toolbar, 0, 1);
+        _inputFill.Add(inputGrid);
+        _inputFill.Add(inputHost);
+        _inputFill.Add(toolbar);
         _txtSessionInput.HandleCreated += (_, _) => _sessionInputScroll.Attach(_txtSessionInput.Handle);
         _txtSessionInput.TextChanged += (_, _) => _sessionInputScroll.RefreshScroll();
-        _txtSessionInput.KeyDown += (_, e) =>
-        {
-            if (e.Control && e.KeyCode == Keys.Enter)
-            {
-                e.SuppressKeyPress = true;
-                TryContinueSession();
-            }
-        };
         _btnSessionSend.Click += (_, _) => TryContinueSession();
         inputCard.Controls.Add(inputGrid);
 
@@ -1331,8 +1408,24 @@ public sealed partial class MainForm
             _turnId = null;
         }
         RefreshSessions();
-        ShowSessionDetail();
-        SetStatus("已删除会话：" + node.DisplayTitle);
+        if (SelectedSessionNode() == null)
+        {
+            // 会话已删光：回到 “Build With DeepSeek” 空态，不在回溯页停着。
+            _rbNew.Checked = true;
+            _lastReplyRaw = "";
+            _txtReply.Clear();
+            _txtInput.Clear();
+            ClearAttachments();
+            RenderReply();
+            ShowMainPage(0);
+            _txtInput.Focus();
+            SetStatus("会话已全部删除，输入消息会自动创建新会话");
+        }
+        else
+        {
+            ShowSessionDetail();
+            SetStatus("已删除会话：" + node.DisplayTitle);
+        }
     }
 
     /// <summary>重新构建会话树并绑定到列表；筛选为空时展示全部。</summary>
@@ -1442,6 +1535,58 @@ public sealed partial class MainForm
     }
 
     /// <summary>把选中会话的完整对话渲染到右侧面板，供回溯查看。</summary>
+    /// <summary>
+    /// 将历史会话记录直接加载到右侧主聊天区（Trae 风格），不再覆盖跳转页面。
+    /// </summary>
+    private void LoadSessionToChatArea(SessionTreeNode node)
+    {
+        ShowMainPage(0);
+        var record = _sessions.LoadSession(node.SessionId);
+        if (record == null || record.Turns.Count == 0)
+        {
+            _txtInput.Clear();
+            _lastReplyRaw = "";
+            RenderReply();
+            return;
+        }
+
+        var sb = new StringBuilder();
+        sb.AppendLine("**历史会话回顾** - " + node.DisplayTitle).AppendLine();
+        foreach (var turn in record.Turns)
+        {
+            if (!string.IsNullOrWhiteSpace(turn.Prompt))
+            {
+                sb.AppendLine("### 👤 你");
+                sb.AppendLine(turn.Prompt.Trim());
+                sb.AppendLine();
+            }
+            if (!string.IsNullOrWhiteSpace(turn.Reply))
+            {
+                sb.AppendLine("### 🤖 DeepSeek");
+                sb.AppendLine(turn.Reply.Trim());
+                sb.AppendLine();
+            }
+        }
+
+        _lastReplyRaw = sb.ToString();
+        RenderReply();
+        _txtReply.SelectionStart = _txtReply.TextLength;
+        _txtReply.ScrollToCaret();
+
+        _sessionId = node.SessionId;
+        _turnId = null;
+        if (!string.IsNullOrWhiteSpace(node.WorkDir) && node.WorkDir != _cfg.WorkDir)
+        {
+            _cfg.WorkDir = node.WorkDir;
+            ConfigService.Save(_cfg);
+            _lblWorkDir.Text = node.WorkDir;
+        }
+
+        _txtInput.Clear();
+        ClearAttachments();
+        _txtInput.Focus();
+        SetStatus("已加载历史会话：" + node.DisplayTitle);
+    }
     private void ShowSessionDetail()
     {
         if (_sessionDetail == null || _sessionDetail.IsDisposed) return;
