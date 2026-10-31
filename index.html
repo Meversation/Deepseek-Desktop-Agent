@@ -26,6 +26,12 @@ h1{font-size:clamp(44px,8.6vw,112px);line-height:.92;letter-spacing:-.045em;font
 .btn.p:hover{transform:translateY(-2px);box-shadow:0 20px 50px rgba(238,241,247,.26)}
 .btn.g{border:1px solid rgba(255,255,255,.18);color:#dbe1ee}
 .btn.g:hover{background:rgba(255,255,255,.07);transform:translateY(-2px)}
+.weekly{display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap;margin-top:34px;padding:18px 24px;border:1px solid rgba(77,141,255,.32);border-radius:18px;background:linear-gradient(110deg,rgba(77,141,255,.15),rgba(255,255,255,.03));text-decoration:none;transition:transform .18s,border-color .18s}
+.weekly:hover{transform:translateY(-2px);border-color:rgba(77,141,255,.62)}
+.weekly .wk{display:block;font:11px/1 ui-monospace,Consolas,monospace;letter-spacing:.22em;color:#7ea6ff}
+.weekly .wt{display:block;margin-top:7px;font-size:clamp(16px,1.7vw,19px);font-weight:650;color:#eef1f7}
+.weekly .wm{display:block;margin-top:6px;font-size:13px;color:#9aa3b8}
+.weekly .wa{font-size:14px;font-weight:650;color:#7ea6ff;white-space:nowrap}
 .sec{position:relative;z-index:1;padding:96px 0;border-top:1px solid rgba(255,255,255,.08)}
 .num{font:12px/1 ui-monospace,Consolas,monospace;letter-spacing:.3em;color:#4d8dff}
 h2{font-size:clamp(30px,5vw,56px);line-height:1.05;letter-spacing:-.035em;font-weight:750;margin:14px 0 34px}
@@ -98,6 +104,14 @@ a,body,button{touch-action:manipulation}
       <a class="btn p" href="https://github.com/Meversation/Deepseek-Desktop-Agent/releases">下载 Deepseek Desktop Agent</a>
       <a class="btn g" href="https://github.com/Meversation/Deepseek-Desktop-Agent/">开源仓库</a>
     </div>
+    <a class="weekly" href="weekly/">
+      <span>
+        <span class="wk">WEEKLY UPDATE · W44</span>
+        <span class="wt">本周更新：输入链路与多任务绑定收口</span>
+        <span class="wm">7 次提交 · 9 项修复 · v1.5.1 · 全部真实运行界面</span>
+      </span>
+      <span class="wa">查看周报 →</span>
+    </a>
   </section>
 
   <section class="sec" id="req">
