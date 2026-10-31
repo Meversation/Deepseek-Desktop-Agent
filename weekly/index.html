@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>本周更新 W44 · Deepseek Desktop Agent</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:#05060a;color:#eef1f7;font:16px/1.75 -apple-system,"Segoe UI","Microsoft YaHei",system-ui,sans-serif;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+body::before{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;background:radial-gradient(900px 620px at 12% -12%,rgba(77,141,255,.3),transparent 62%),radial-gradient(760px 520px at 96% 4%,rgba(124,92,255,.24),transparent 60%),radial-gradient(900px 700px at 50% 112%,rgba(0,229,201,.1),transparent 60%)}
+.container{max-width:1120px;margin:0 auto;padding:0 26px;position:relative;z-index:1}
+.nav{position:fixed;top:0;left:0;right:0;z-index:20;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 26px;backdrop-filter:blur(14px);background:rgba(5,6,10,.55);border-bottom:1px solid rgba(255,255,255,.08)}
+.nav b{font-size:13px;letter-spacing:.18em;white-space:nowrap}
+.nav a{color:#8b93a7;text-decoration:none;font-size:13.5px;letter-spacing:.04em;transition:.2s}
+.nav a:hover{color:#fff}
+.hero{padding:158px 0 84px;position:relative;z-index:1}
+.eyebrow{font:12.5px/1 ui-monospace,Consolas,monospace;letter-spacing:.28em;text-transform:uppercase;color:#6f7a92;margin-bottom:26px}
+h1{font-size:clamp(44px,8vw,104px);line-height:.94;letter-spacing:-.04em;font-weight:800;background:linear-gradient(180deg,#fff 12%,#8fa6d8 62%,#4d8dff 130%);-webkit-background-clip:text;background-clip:text;color:transparent}
+.sub{margin-top:22px;max-width:720px;color:#a4adc2;font-size:clamp(15px,1.6vw,18px)}
+.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;margin-top:56px;max-width:760px}
+.stat{border:1px solid rgba(255,255,255,.1);border-radius:18px;padding:22px 24px;background:rgba(255,255,255,.035)}
+.stat b{display:block;font-size:clamp(38px,5vw,58px);line-height:1;letter-spacing:-.04em}
+.stat span{display:block;margin-top:10px;color:#8b93a7;font-size:13.5px;letter-spacing:.08em}
+.sec{position:relative;z-index:1;padding:76px 0;border-top:1px solid rgba(255,255,255,.08)}
+.num{font:12px/1 ui-monospace,Consolas,monospace;letter-spacing:.3em;color:#4d8dff}
+h2{font-size:clamp(28px,4.4vw,50px);line-height:1.06;letter-spacing:-.03em;font-weight:750;margin:14px 0 18px}
+.lead{color:#a4adc2;max-width:760px;margin-bottom:28px}
+ul{list-style:none}
+ul li{position:relative;padding-left:26px;margin-bottom:12px;color:#b6bed1}
+ul li::before{content:"";position:absolute;left:2px;top:.72em;width:8px;height:8px;border-radius:50%;background:#4d8dff;box-shadow:0 0 14px rgba(77,141,255,.9)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin-top:26px}
+.chip{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:20px 22px}
+.chip h3{margin:0 0 8px;font-size:16.5px;color:#fff}
+.chip p{margin:0;font-size:14px;color:#9aa3b8}
+.chip ul{margin-top:12px}
+.chip li{font-size:14px;padding-left:20px;margin-bottom:9px}
+.chip.warn{border-left:3px solid #fbbf24}
+.chip.warn li::before{background:#fbbf24;box-shadow:0 0 14px rgba(251,191,36,.65)}
+.muted{margin-top:20px;font-family:ui-monospace,Consolas,monospace;font-size:13px;color:#6f7a92}
+.gallery{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;margin-top:28px}
+.shot{border:1px solid rgba(255,255,255,.1);border-radius:16px;overflow:hidden;background:#0b0d13}
+.shot img{display:block;width:100%;height:220px;object-fit:contain;background:#0b0d13}
+.shot p{padding:12px 14px;font-size:13.5px;color:#8b93a7;border-top:1px solid rgba(255,255,255,.06)}
+.video{margin-top:30px;border:1px solid rgba(255,255,255,.1);border-radius:18px;overflow:hidden;background:#0b0d13}
+.video video{display:block;width:100%;height:auto}
+.note{margin-top:22px;padding:18px 22px;border:1px solid rgba(77,141,255,.28);border-radius:14px;background:rgba(77,141,255,.08);color:#cfd8ea;font-size:14px}
+footer{position:relative;z-index:1;border-top:1px solid rgba(255,255,255,.08);padding:52px 0 70px;color:#5f6a82;font-size:13.5px}
+footer a{color:#7ea6ff}
+.reveal{opacity:0;transform:translateY(26px);transition:opacity .7s cubic-bezier(.2,.7,.3,1),transform .7s cubic-bezier(.2,.7,.3,1)}
+.reveal.in{opacity:1;transform:none}
+@media (prefers-reduced-motion:reduce){.reveal{opacity:1;transform:none;transition:none}}
+@media (max-width:760px){
+.container{padding:0 18px}
+.hero{padding:120px 0 56px}
+.stats{grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:36px}
+.stat{padding:16px 12px}
+.stat span{font-size:11.5px}
+.sec{padding:56px 0}
+.gallery{grid-template-columns:1fr}
+.shot img{height:220px}
+}
+</style>
+</head>
+<body>
+<header class="nav">
+  <b>DEEPSEEK DESKTOP AGENT</b>
+  <a href="../">返回首页</a>
+</header>
+
+<main>
+  <section class="container hero reveal">
+    <p class="eyebrow">Weekly Update · 2026 W44 · 10.25 — 10.31</p>
+    <h1>本周更新</h1>
+    <p class="sub">桌面端完成一轮 UI 重构，DeepSeek 网页改为按需窗口，Agent 增加了紧急停止与消息队列，v1.5.1 已发布；对外物料也在这周补齐。</p>
+    <div class="stats">
+      <div class="stat"><b>7</b><span>次提交</span></div>
+      <div class="stat"><b>3</b><span>项能力更新</span></div>
+      <div class="stat"><b>1</b><span>个版本发布</span></div>
+    </div>
+  </section>
+
+  <section class="sec" id="ui">
+    <div class="container reveal">
+      <p class="num">01</p>
+      <h2>桌面 UI 重构</h2>
+      <p class="lead">侧栏按工作区与会话分层，常用入口集中到左侧；会话可以续接，不再每次重开新对话。</p>
+      <ul>
+        <li>侧栏采用 Trae 式结构，工作区 / 会话 / 任务 / 设置分区</li>
+        <li>会话续接，切换页面不打断上下文</li>
+        <li>常用操作收进侧栏入口，减少主界面层级</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="sec" id="web">
+    <div class="container reveal">
+      <p class="num">02</p>
+      <h2>网页改为按需窗口</h2>
+      <p class="lead">DeepSeek 网页不再常驻后台，需要时再唤起；会话页面同步瘦身，信息密度更低。</p>
+      <ul>
+        <li>网页窗口按需唤起，用完即可释放</li>
+        <li>会话页面减负，输入与回复更聚焦</li>
+        <li>窗口生命周期跟随主程序，避免残留进程</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="sec" id="agent">
+    <div class="container reveal">
+      <p class="num">03</p>
+      <h2>可控的 Agent</h2>
+      <p class="lead">随时踩刹车，停下来的任务不会丢。</p>
+      <div class="grid">
+        <div class="chip"><h3>紧急停止</h3><p>一键中断正在执行的操作，避免命令继续跑偏。</p></div>
+        <div class="chip"><h3>消息队列</h3><p>停止后可以继续输入，任务按顺序补跑，不丢上下文。</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" id="release">
+    <div class="container reveal">
+      <p class="num">04</p>
+      <h2>版本发布 v1.5.1</h2>
+      <p class="lead">本轮改动已合并到主分支并发布，文档与许可证同步更新。</p>
+      <ul>
+        <li>桌面端：UI 重构落地，会话续接可用</li>
+        <li>网页：改为按需窗口，会话页瘦身</li>
+        <li>Agent：停止与队列行为稳定</li>
+        <li>发布：README、设计文档、许可证同步</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="sec" id="review">
+    <div class="container reveal">
+      <p class="num">05</p>
+      <h2>复盘与下周</h2>
+      <p class="lead">把问题摊开：这周仍有没来得及收口的点，下周按优先级继续。</p>
+      <div class="grid">
+        <div class="chip warn">
+          <h3>本周问题</h3>
+          <ul>
+            <li>网页窗口生命周期缺少真机长测</li>
+            <li>杀毒软件误报仍未彻底消除</li>
+            <li>高频调用存在账号风控风险</li>
+          </ul>
+        </div>
+        <div class="chip">
+          <h3>下周计划</h3>
+          <ul>
+            <li>发布流程自动化</li>
+            <li>会话续接与窗口稳定性回归</li>
+            <li>宣传片投放，回收首轮数据</li>
+            <li>物料收尾：封面与群头像</li>
+          </ul>
+        </div>
+      </div>
+      <p class="muted">物料已完成，不在周报里展开：56 秒宣传片 · B 站 16:9 / 4:3 封面 · QQ 群头像</p>
+      <div class="video">
+        <video controls preload="metadata" src="assets/weekly-report-w44.mp4"></video>
+      </div>
+      <div class="note">视频版周报：56 秒，1920 × 1080，卡点剪辑；本页与视频同一套更新内容。</div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="container">
+    本周更新 W44 · Deepseek Desktop Agent ·
+    <a href="https://github.com/Meversation/Deepseek-Desktop-Agent/">Meversation/Deepseek-Desktop-Agent</a>
+  </div>
+</footer>
+
+<script>
+(function () {
+  var items = document.querySelectorAll(".reveal");
+  if ("IntersectionObserver" in window) {
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (entry.isIntersecting) {
+          entry.target.classList.add("in");
+          io.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.12 });
+    items.forEach(function (el) { io.observe(el); });
+  } else {
+    items.forEach(function (el) { el.classList.add("in"); });
+  }
+})();
+</script>
+</body>
+</html>
